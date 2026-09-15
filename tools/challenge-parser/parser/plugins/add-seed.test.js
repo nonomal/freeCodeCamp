@@ -1,19 +1,15 @@
-const isArray = require('lodash/isArray');
-const parseFixture = require('../__fixtures__/parse-fixture');
+import { describe, beforeAll, beforeEach, it, expect } from 'vitest';
+import isArray from 'lodash/isArray';
+import parseFixture from '../__fixtures__/parse-fixture';
 
-const addSeed = require('./add-seed');
+import addSeed from './add-seed';
 
 describe('add-seed plugin', () => {
   let adjacentKeysAST,
     withSeedKeysAST,
-    withBeforeAfterAST,
     cCodeAST,
     withErmsOnOneLineAST,
-    withEmptyAfterAST,
-    withEmptyBeforeAST,
     withEmptyContentsAST,
-    withInvalidBeforeAST,
-    withInvalidAfterAST,
     simpleAST,
     withEditableMarkersAST,
     withSeedKeysOrphanAST,
@@ -26,16 +22,11 @@ describe('add-seed plugin', () => {
   beforeAll(async () => {
     adjacentKeysAST = await parseFixture('with-seed-keys-adjacent.md');
     withSeedKeysAST = await parseFixture('with-seed-keys.md');
-    withBeforeAfterAST = await parseFixture('with-before-and-after.md');
     cCodeAST = await parseFixture('with-c-code.md');
     withErmsOnOneLineAST = await parseFixture(
       'with-editable-markers-on-one-line.md'
     );
-    withEmptyAfterAST = await parseFixture('with-empty-after.md');
-    withEmptyBeforeAST = await parseFixture('with-empty-before.md');
     withEmptyContentsAST = await parseFixture('with-empty-contents.md');
-    withInvalidBeforeAST = await parseFixture('with-invalid-before.md');
-    withInvalidAfterAST = await parseFixture('with-invalid-after.md');
     simpleAST = await parseFixture('simple.md');
     withEditableMarkersAST = await parseFixture('with-editable-markers.md');
     withSeedKeysOrphanAST = await parseFixture('with-seed-keys-orphan.md');
@@ -64,23 +55,19 @@ describe('add-seed plugin', () => {
   });
 
   it('adds test objects to the challengeFiles array following a schema', () => {
-    expect.assertions(15);
+    expect.assertions(11);
     plugin(simpleAST, file);
     const {
       data: { challengeFiles }
     } = file;
     const testObject = challengeFiles.find(x => x.ext === 'js');
-    expect(Object.keys(testObject).length).toEqual(7);
+    expect(Object.keys(testObject).length).toEqual(5);
     expect(testObject).toHaveProperty('ext');
     expect(typeof testObject['ext']).toBe('string');
     expect(testObject).toHaveProperty('name');
     expect(typeof testObject['name']).toBe('string');
     expect(testObject).toHaveProperty('contents');
     expect(typeof testObject['contents']).toBe('string');
-    expect(testObject).toHaveProperty('head');
-    expect(typeof testObject['head']).toBe('string');
-    expect(testObject).toHaveProperty('tail');
-    expect(typeof testObject['tail']).toBe('string');
     expect(testObject).toHaveProperty('id');
     expect(typeof testObject['id']).toBe('string');
     expect(testObject).toHaveProperty('editableRegionBoundaries');
@@ -154,94 +141,12 @@ describe('add-seed plugin', () => {
     expect(file).toEqual(fileTwo);
   });
 
-  it('gets the before-user-code for each language', () => {
-    expect.assertions(3);
-    plugin(withBeforeAfterAST, file);
-    const {
-      data: { challengeFiles }
-    } = file;
-    const scriptjs = challengeFiles.find(x => x.ext === 'js');
-    const indexhtml = challengeFiles.find(x => x.ext === 'html');
-    const stylescss = challengeFiles.find(x => x.ext === 'css');
-
-    expect(scriptjs.head).toBe('');
-    expect(indexhtml.head).toBe(`<!-- comment -->`);
-    expect(stylescss.head).toBe(`body {
-  etc: ''
-}`);
-  });
-
-  it('gets the after-user-code for each language', () => {
-    expect.assertions(3);
-    plugin(withBeforeAfterAST, file);
-    const {
-      data: { challengeFiles }
-    } = file;
-    const scriptjs = challengeFiles.find(x => x.ext === 'js');
-    const indexhtml = challengeFiles.find(x => x.ext === 'html');
-    const stylescss = challengeFiles.find(x => x.ext === 'css');
-
-    expect(scriptjs.tail).toBe(`function teardown(params) {
-  // after
-}`);
-    expect(indexhtml.tail).toBe('');
-    expect(stylescss.tail).toBe(`body {
-  background: blue;
-}`);
-  });
-
   it('throws an error if there is any code of an unsupported language', () => {
     expect.assertions(1);
     expect(() => plugin(cCodeAST, file)).toThrow(
-      "On line 30 'c' is not a supported language.\n" +
-        ' Please use one of js, css, html, jsx or py'
+      "On line 18 'c' is not a supported language.\n" +
+        ' Please use one of js, css, html, jsx, ts, tsx or py'
     );
-  });
-
-  it('throws if there is before/after code with empty blocks', () => {
-    expect.assertions(2);
-    expect(() => plugin(withInvalidBeforeAST, file)).toThrow(
-      'Empty code block in --before-user-code-- section'
-    );
-    expect(() => plugin(withInvalidAfterAST, file)).toThrow(
-      'Empty code block in --after-user-code-- section'
-    );
-  });
-
-  it('quietly ignores empty before sections', () => {
-    expect.assertions(6);
-    plugin(withEmptyBeforeAST, file);
-    const {
-      data: { challengeFiles }
-    } = file;
-    const scriptjs = challengeFiles.find(x => x.ext === 'js');
-    const indexhtml = challengeFiles.find(x => x.ext === 'html');
-    const stylescss = challengeFiles.find(x => x.ext === 'css');
-
-    expect(scriptjs.head).toBe('');
-    expect(scriptjs.tail).toBe('function teardown(params) {\n  // after\n}');
-    expect(indexhtml.head).toBe('');
-    expect(indexhtml.tail).toBe('');
-    expect(stylescss.head).toBe('');
-    expect(stylescss.tail).toBe('body {\n  background: blue;\n}');
-  });
-
-  it('quietly ignores empty after sections', () => {
-    expect.assertions(6);
-    plugin(withEmptyAfterAST, file);
-    const {
-      data: { challengeFiles }
-    } = file;
-    const scriptjs = challengeFiles.find(x => x.ext === 'js');
-    const indexhtml = challengeFiles.find(x => x.ext === 'html');
-    const stylescss = challengeFiles.find(x => x.ext === 'css');
-
-    expect(scriptjs.head).toBe('');
-    expect(scriptjs.tail).toBe('');
-    expect(indexhtml.head).toBe('<!-- comment -->');
-    expect(indexhtml.tail).toBe('');
-    expect(stylescss.head).toBe("body {\n  etc: ''\n}");
-    expect(stylescss.tail).toBe('');
   });
 
   it('throws an error (with line number) if 2 markers appear on 1 line', () => {
@@ -252,17 +157,13 @@ describe('add-seed plugin', () => {
   });
 
   it('handles jsx', () => {
-    expect.assertions(3);
+    expect.assertions(1);
     plugin(withSeedKeysJSXAST, file);
     const {
       data: { challengeFiles }
     } = file;
     const indexjsx = challengeFiles.find(x => x.ext === 'jsx');
 
-    expect(indexjsx.head).toBe(`function setup() {}`);
-    expect(indexjsx.tail).toBe(`function teardown(params) {
-  // after
-}`);
     expect(indexjsx.contents).toBe(`var x = 'y';
 
 /* comment */
@@ -271,28 +172,18 @@ const Button = () => {
 };`);
   });
 
-  /* Revisit this once we've decided what to do about multifile imports. I
-  think the best approach is likely to be use the following format for .files
+  it('handles json', () => {
+    expect.assertions(1);
+    plugin(simpleAST, file);
+    const {
+      data: { challengeFiles }
+    } = file;
+    const tsconfigjsonc = challengeFiles.find(x => x.ext === 'json');
 
-  it('combines all the code of a specific language into a single file', () => {
-
-    { css: [css files],
-      html: [html files],
-      ...
-    }
-
-    or
-
-     { css: {css files},
-      html: {html files},
-      ...
-    }
-
-    depending on what's easier to work with in graphQL
-
+    expect(tsconfigjsonc.contents).toBe(
+      `{\n  "compilerOptions": {\n    "target": "ES2020"\n  }\n}`
+    );
   });
-
-  */
 
   it('should throw an error if a seed has no contents', () => {
     expect.assertions(1);

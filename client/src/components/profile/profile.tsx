@@ -1,21 +1,34 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Helmet from 'react-helmet';
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
-
-import { Alert, Container, Row } from '@freecodecamp/ui';
-import { FullWidthRow, Link, Spacer } from '../helpers';
+import { Callout, Container, Modal, Row, Spacer } from '@freecodecamp/ui';
+import { FullWidthRow, Link } from '../helpers';
+import UsernameSettings from './components/username';
+import About from './components/about';
+import Internet from './components/internet';
 import { User } from './../../redux/prop-types';
 import Timeline from './components/time-line';
 import Camper from './components/camper';
 import Certifications from './components/certifications';
 import Stats from './components/stats';
 import HeatMap from './components/heat-map';
+import './profile.css';
 import { PortfolioProjects } from './components/portfolio-projects';
+import { ExperienceDisplay } from './components/experience-display';
+import { ProfileCompleteness } from './components/profile-completeness';
+import { ProfilePrivacy } from './components/profile-privacy';
 
 interface ProfileProps {
   isSessionUser: boolean;
   user: User;
+}
+
+interface EditModalProps {
+  user: User;
+  isEditing: boolean;
+  isSessionUser: boolean;
+  setIsEditing: (isEditing: boolean) => void;
 }
 interface MessageProps {
   isSessionUser: boolean;
@@ -26,9 +39,28 @@ interface MessageProps {
 const UserMessage = ({ t }: Pick<MessageProps, 't'>) => {
   return (
     <FullWidthRow>
-      <Alert variant='info'>{t('profile.you-change-privacy')}</Alert>
-      <Spacer size='medium' />
+      <Callout variant='note' label={t('misc.note')}>
+        {t('profile.you-change-privacy')}
+      </Callout>
+      <Spacer size='xl' />
     </FullWidthRow>
+  );
+};
+
+const EditModal = ({ user, isEditing, setIsEditing }: EditModalProps) => {
+  const { username } = user;
+  const { t } = useTranslation();
+  return (
+    <Modal onClose={() => setIsEditing(false)} open={isEditing} size='large'>
+      <Modal.Header>{t('profile.edit-my-profile')}</Modal.Header>
+      <Modal.Body alignment='left'>
+        <UsernameSettings username={username} setIsEditing={setIsEditing} />
+        <Spacer size='m' />
+        <About user={user} setIsEditing={setIsEditing} />
+        <Spacer size='m' />
+        <Internet user={user} setIsEditing={setIsEditing} />
+      </Modal.Body>
+    </Modal>
   );
 };
 
@@ -38,10 +70,10 @@ const VisitorMessage = ({
 }: Omit<MessageProps, 'isSessionUser'>) => {
   return (
     <FullWidthRow>
-      <Alert variant='info'>
+      <Callout variant='note' label={t('misc.note')}>
         {t('profile.username-change-privacy', { username })}
-      </Alert>
-      <Spacer size='medium' />
+      </Callout>
+      <Spacer size='m' />
     </FullWidthRow>
   );
 };
@@ -53,63 +85,100 @@ const Message = ({ isSessionUser, t, username }: MessageProps) => {
   return <VisitorMessage t={t} username={username} />;
 };
 
-function UserProfile({ user }: { user: ProfileProps['user'] }): JSX.Element {
+function UserProfile({ user, isSessionUser }: ProfileProps): JSX.Element {
+  const [isEditing, setIsEditing] = useState(false);
+
   const {
     profileUI: {
-      showAbout,
+      isLocked,
       showCerts,
-      showDonation,
       showHeatMap,
-      showLocation,
-      showName,
       showPoints,
       showPortfolio,
+      showExperience,
       showTimeLine
     },
+    about,
     calendar,
     completedChallenges,
-    githubProfile,
-    linkedin,
-    twitter,
-    website,
     name,
-    username,
-    joinDate,
-    location,
-    points,
     picture,
+    points,
     portfolio,
-    about,
-    yearsTopContributor,
-    isDonating
+    experience,
+    username
   } = user;
 
   return (
     <>
+      {isSessionUser && (
+        <EditModal
+          user={user}
+          isEditing={isEditing}
+          isSessionUser={isSessionUser}
+          setIsEditing={setIsEditing}
+        />
+      )}
+      {isSessionUser && (
+        <ProfileCompleteness
+          name={name}
+          about={about}
+          picture={picture}
+          location={user.location}
+          githubProfile={user.githubProfile}
+          linkedin={user.linkedin}
+          twitter={user.twitter}
+          bluesky={user.bluesky}
+          website={user.website}
+          portfolio={portfolio}
+          experience={experience || []}
+          isLocked={isLocked}
+        />
+      )}
+      {isSessionUser && <ProfilePrivacy />}
       <Camper
-        about={showAbout ? about : ''}
-        githubProfile={githubProfile}
-        isDonating={showDonation ? isDonating : false}
-        joinDate={showAbout ? joinDate : ''}
-        linkedin={linkedin}
-        location={showLocation ? location : ''}
-        name={showName ? name : ''}
-        picture={picture}
-        twitter={twitter}
-        username={username}
-        website={website}
-        yearsTopContributor={yearsTopContributor}
+        user={user}
+        isSessionUser={isSessionUser}
+        setIsEditing={setIsEditing}
       />
-      {showPoints ? <Stats points={points} calendar={calendar} /> : null}
-      {showHeatMap ? <HeatMap calendar={calendar} /> : null}
-      {showCerts ? <Certifications username={username} /> : null}
-      {showPortfolio ? (
-        <PortfolioProjects portfolioProjects={portfolio} />
+      {showPoints || isSessionUser ? (
+        <Stats
+          points={points}
+          calendar={calendar}
+          isPrivate={isSessionUser && !showPoints}
+        />
       ) : null}
-      {showTimeLine ? (
-        <Timeline completedMap={completedChallenges} username={username} />
+      {showHeatMap || isSessionUser ? (
+        <HeatMap
+          calendar={calendar}
+          isPrivate={isSessionUser && !showHeatMap}
+        />
       ) : null}
-      <Spacer size='medium' />
+      {showPortfolio || isSessionUser ? (
+        <PortfolioProjects
+          portfolioProjects={portfolio}
+          isPrivate={isSessionUser && !showPortfolio}
+          isSessionUser={isSessionUser}
+        />
+      ) : null}
+      {showExperience || isSessionUser ? (
+        <ExperienceDisplay
+          experience={experience || []}
+          isPrivate={isSessionUser && !showExperience}
+          isSessionUser={isSessionUser}
+        />
+      ) : null}
+      {showCerts || isSessionUser ? (
+        <Certifications user={user} isPrivate={isSessionUser && !showCerts} />
+      ) : null}
+      {showTimeLine || isSessionUser ? (
+        <Timeline
+          completedMap={completedChallenges}
+          username={username}
+          isPrivate={isSessionUser && !showTimeLine}
+        />
+      ) : null}
+      <Spacer size='m' />
     </>
   );
 }
@@ -128,13 +197,15 @@ function Profile({ user, isSessionUser }: ProfileProps): JSX.Element {
       <Helmet>
         <title>{t('buttons.profile')} | freeCodeCamp.org</title>
       </Helmet>
-      <Spacer size='medium' />
+      <Spacer size='m' />
       <Container>
-        <Spacer size='medium' />
+        <Spacer size='m' />
         {isLocked && (
           <Message username={username} isSessionUser={isSessionUser} t={t} />
         )}
-        {showUserProfile && <UserProfile user={user} />}
+        {showUserProfile && (
+          <UserProfile user={user} isSessionUser={isSessionUser} />
+        )}
         {!isSessionUser && (
           <Row className='text-center'>
             <Link to={`/user/${username}/report-user`}>
@@ -142,7 +213,7 @@ function Profile({ user, isSessionUser }: ProfileProps): JSX.Element {
             </Link>
           </Row>
         )}
-        <Spacer size='medium' />
+        <Spacer size='m' />
       </Container>
     </>
   );

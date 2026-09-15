@@ -1,5 +1,5 @@
 import { Type } from '@fastify/type-provider-typebox';
-import { genericError } from '../types';
+import { genericError } from '../types.js';
 
 export const postMsUsername = {
   body: Type.Object({
@@ -17,13 +17,11 @@ export const postMsUsername = {
       type: Type.Literal('error'),
       message: Type.Literal('flash.ms.transcript.link-err-2')
     }),
-    403: Type.Union([
-      Type.Object({
-        type: Type.Literal('error'),
-        message: Type.Literal('flash.ms.transcript.link-err-4')
-      }),
-      genericError
-    ]),
+    403: genericError,
+    409: Type.Object({
+      type: Type.Literal('error'),
+      message: Type.Literal('flash.ms.transcript.link-err-4')
+    }),
     500: Type.Union([
       Type.Object({
         type: Type.Literal('error'),

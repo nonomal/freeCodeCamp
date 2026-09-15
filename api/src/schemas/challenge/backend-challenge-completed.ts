@@ -1,5 +1,5 @@
 import { Type } from '@fastify/type-provider-typebox';
-import { genericError } from '../types';
+import { genericError } from '../types.js';
 
 export const backendChallengeCompleted = {
   body: Type.Object({
@@ -17,6 +17,15 @@ export const backendChallengeCompleted = {
         'That does not appear to be a valid challenge submission.'
       )
     }),
+    403: Type.Union([
+      Type.Object({
+        type: Type.Literal('error'),
+        message: Type.Literal(
+          'Exam submissions are not allowed on this endpoint.'
+        )
+      }),
+      genericError
+    ]),
     default: genericError
   }
 };

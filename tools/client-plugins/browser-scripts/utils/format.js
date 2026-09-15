@@ -1,7 +1,7 @@
 // TODO: this is a straight up copy of the format function from the client.
 // Figure out a way to share it.
 
-import { inspect } from 'util/util';
+import { inspect } from 'util/util.js';
 
 export function format(x) {
   // we're trying to mimic console.log, so we avoid wrapping strings in quotes:
@@ -12,7 +12,7 @@ export function format(x) {
     return `Map(${x.size}) {${Array.from(
       x.entries(),
       ([k, v]) => `${k} => ${v}`
-    ).join(', ')}})`;
+    ).join(', ')}}`;
   } else if (typeof x === 'bigint') {
     return x.toString() + 'n';
   } else if (typeof x === 'symbol') {

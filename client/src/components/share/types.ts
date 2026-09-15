@@ -1,8 +1,13 @@
 export interface ShareProps {
   superBlock: string;
   block: string;
+  minified?: boolean;
 }
 
 export interface ShareRedirectProps {
-  redirectURL: string;
+  xRedirectURL: string;
+  blueSkyRedirectURL: string;
+  threadsRedirectURL: string;
+  facebookRedirectURL: string;
+  minified?: boolean;
 }

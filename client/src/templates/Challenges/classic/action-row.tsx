@@ -2,32 +2,111 @@ import { faWindowRestore } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import store from 'store';
+import { DailyCodingChallengeLanguages } from '../../../redux/prop-types';
 import EditorTabs from './editor-tabs';
 
-interface ActionRowProps {
+interface ClassicLayoutProps {
+  dailyCodingChallengeLanguage: DailyCodingChallengeLanguages;
   hasNotes: boolean;
   hasPreview: boolean;
-  isProjectBasedChallenge: boolean;
+  isDailyCodingChallenge: boolean;
+  setDailyCodingChallengeLanguage: (
+    language: DailyCodingChallengeLanguages
+  ) => void;
   showConsole: boolean;
   showNotes: boolean;
   showInstructions: boolean;
   showPreviewPane: boolean;
   showPreviewPortal: boolean;
   togglePane: (pane: string) => void;
+  hasInteractiveEditor?: never;
+  usesTerminal: boolean;
+  hasContentOutline?: never;
 }
 
-const ActionRow = ({
-  hasPreview,
-  hasNotes,
-  togglePane,
-  showNotes,
-  showPreviewPane,
-  showPreviewPortal,
-  showConsole,
-  showInstructions,
-  isProjectBasedChallenge
-}: ActionRowProps): JSX.Element => {
+interface InteractiveEditorProps {
+  hasInteractiveEditor: true;
+  hasContentOutline?: never;
+  showInteractiveEditor: boolean;
+  toggleInteractiveEditor: () => void;
+}
+
+interface ReviewChallengeProps {
+  hasContentOutline: true;
+  hasInteractiveEditor?: never;
+  showContentOutline: boolean;
+  onToggleContentOutline: () => void;
+}
+
+interface ReviewWithInteractiveEditorProps {
+  hasContentOutline: true;
+  hasInteractiveEditor: true;
+  showContentOutline: boolean;
+  onToggleContentOutline: () => void;
+  showInteractiveEditor: boolean;
+  toggleInteractiveEditor: () => void;
+}
+
+type ActionRowProps =
+  | ClassicLayoutProps
+  | InteractiveEditorProps
+  | ReviewChallengeProps
+  | ReviewWithInteractiveEditorProps;
+
+const ActionRow = (props: ActionRowProps): JSX.Element => {
   const { t } = useTranslation();
+
+  if (props.hasContentOutline || props.hasInteractiveEditor) {
+    return (
+      <div className='action-row'>
+        <div className='tabs-row'>
+          <div className='tabs-row-left'>
+            {props.hasContentOutline && (
+              <button
+                aria-controls='content-outline-panel'
+                aria-expanded={props.showContentOutline}
+                onClick={props.onToggleContentOutline}
+              >
+                {t('buttons.outline')}
+              </button>
+            )}
+          </div>
+          <div className='tabs-row-right'>
+            {props.hasInteractiveEditor && (
+              <div className='interactive-editor-tab'>
+                <button
+                  aria-expanded={!!props.showInteractiveEditor}
+                  aria-describedby='interactive-editor-desc'
+                  onClick={props.toggleInteractiveEditor}
+                >
+                  {t('learn.editor-tabs.interactive-editor')}
+                </button>
+                <span id='interactive-editor-desc' className='sr-only'>
+                  {t('aria.interactive-editor-desc')}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const {
+    togglePane,
+    hasPreview,
+    hasNotes,
+    showConsole,
+    showNotes,
+    showInstructions,
+    showPreviewPane,
+    showPreviewPortal,
+    isDailyCodingChallenge,
+    dailyCodingChallengeLanguage,
+    setDailyCodingChallengeLanguage,
+    usesTerminal
+  } = props;
 
   // sets screen reader text for the two preview buttons
   function getPreviewBtnsSrText() {
@@ -37,24 +116,44 @@ const ActionRow = ({
       portal: t('aria.open-preview-in-new-window')
     };
 
-    // preview open in main window
+    // open in main window
     if (showPreviewPane && !showPreviewPortal) {
-      previewBtnsSrText.pane = t('aria.hide-preview');
-      previewBtnsSrText.portal = t('aria.move-preview-to-new-window');
-
-      // preview open in external window
+      if (usesTerminal) {
+        previewBtnsSrText.pane = t('aria.hide-terminal');
+        previewBtnsSrText.portal = t('aria.move-terminal-to-new-window');
+      } else {
+        previewBtnsSrText.pane = t('aria.hide-preview');
+        previewBtnsSrText.portal = t('aria.move-preview-to-new-window');
+      }
+      // open in external window
     } else if (showPreviewPortal && !showPreviewPane) {
-      previewBtnsSrText.pane = t('aria.move-preview-to-main-window');
-      previewBtnsSrText.portal = t('aria.close-external-preview-window');
+      if (usesTerminal) {
+        previewBtnsSrText.pane = t('aria.move-terminal-to-main-window');
+        previewBtnsSrText.portal = t('aria.close-external-terminal-window');
+      } else {
+        previewBtnsSrText.pane = t('aria.move-preview-to-main-window');
+        previewBtnsSrText.portal = t('aria.close-external-preview-window');
+      }
     }
 
     return previewBtnsSrText;
   }
 
+  const handleLanguageChange = (language: DailyCodingChallengeLanguages) => {
+    store.set('dailyCodingChallengeLanguage', language);
+    setDailyCodingChallengeLanguage(language);
+  };
+
+  const previewPaneButtonText =
+    usesTerminal == false
+      ? 'learn.editor-tabs.preview'
+      : 'learn.editor-tabs.terminal';
+
   return (
     <div className='action-row' data-playwright-test-label='action-row'>
       <div className='tabs-row' data-playwright-test-label='tabs-row'>
-        {!isProjectBasedChallenge && (
+        {/* left */}
+        <div className='tabs-row-left'>
           <button
             data-playwright-test-label='instructions-button'
             aria-expanded={!!showInstructions}
@@ -62,9 +161,29 @@ const ActionRow = ({
           >
             {t('learn.editor-tabs.instructions')}
           </button>
+          <EditorTabs data-playwright-test-label='editor-tabs' />
+        </div>
+        {/* middle - only used with daily coding challenges for now */}
+        {isDailyCodingChallenge && (
+          <div className='tabs-row-middle'>
+            <button
+              aria-expanded={dailyCodingChallengeLanguage === 'javascript'}
+              disabled={dailyCodingChallengeLanguage === 'javascript'}
+              onClick={() => handleLanguageChange('javascript')}
+            >
+              JavaScript
+            </button>
+            <button
+              aria-expanded={dailyCodingChallengeLanguage === 'python'}
+              disabled={dailyCodingChallengeLanguage === 'python'}
+              onClick={() => handleLanguageChange('python')}
+            >
+              Python
+            </button>
+          </div>
         )}
-        <EditorTabs data-playwright-test-label='editor-tabs' />
-        <div className='panel-display-tabs'>
+        {/* right */}
+        <div className='tabs-row-right panel-display-tabs'>
           <button
             aria-expanded={!!showConsole}
             onClick={() => togglePane('showConsole')}
@@ -87,7 +206,7 @@ const ActionRow = ({
                 onClick={() => togglePane('showPreviewPane')}
               >
                 <span className='sr-only'>{getPreviewBtnsSrText().pane}</span>
-                <span aria-hidden='true'>{t('learn.editor-tabs.preview')}</span>
+                <span aria-hidden='true'>{t(previewPaneButtonText)}</span>
               </button>
               <button
                 aria-expanded={!!showPreviewPortal}

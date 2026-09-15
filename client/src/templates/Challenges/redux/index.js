@@ -1,14 +1,14 @@
 import { isEmpty } from 'lodash-es';
 import { handleActions } from 'redux-actions';
 
-import { getLines } from '../../../../../shared/utils/get-lines';
-import { mergeChallengeFiles } from '../classic/saved-challenges';
+import { getLines } from '@freecodecamp/shared/utils/get-lines';
 import { getTargetEditor } from '../utils/get-target-editor';
 import { actionTypes, ns } from './action-types';
 import codeStorageEpic from './code-storage-epic';
 import completionEpic from './completion-epic';
 import createQuestionEpic from './create-question-epic';
 import { createCurrentChallengeSaga } from './current-challenge-saga';
+import { createAskSocratesSaga } from './ask-socrates-saga';
 import { createExecuteChallengeSaga } from './execute-challenge-saga';
 
 export { ns };
@@ -23,10 +23,12 @@ const initialState = {
     block: '',
     blockHashSlug: '/',
     id: '',
-    nextBlock: '',
+    isLastChallengeInBlock: false,
     nextChallengePath: '/',
     prevChallengePath: '/',
-    challengeType: -1
+    challengeType: -1,
+    saveSubmissionToDB: false,
+    description: ''
   },
   challengeTests: [],
   consoleOut: [],
@@ -43,26 +45,38 @@ const initialState = {
     reset: false,
     exitExam: false,
     finishExam: false,
+    exitQuiz: false,
+    finishQuiz: false,
     examResults: false,
     survey: false,
     projectPreview: false,
-    shortcuts: false
+    shortcuts: false,
+    speaking: false
   },
   portalWindow: null,
   showPreviewPortal: false,
   showPreviewPane: true,
+  isProjectPreviewLoading: false,
   projectFormValues: {},
   successMessage: 'Happy Coding!',
   isAdvancing: false,
   chapterSlug: '',
-  isSubmitting: false
+  isSubmitting: false,
+  socratesHintState: {
+    hint: null,
+    isLoading: false,
+    error: null,
+    attempts: null,
+    limit: null
+  }
 };
 
 export const epics = [completionEpic, createQuestionEpic, codeStorageEpic];
 
 export const sagas = [
   ...createExecuteChallengeSaga(actionTypes),
-  ...createCurrentChallengeSaga(actionTypes)
+  ...createCurrentChallengeSaga(actionTypes),
+  ...createAskSocratesSaga(actionTypes)
 ];
 
 export const reducer = handleActions(
@@ -81,23 +95,31 @@ export const reducer = handleActions(
     }),
     [actionTypes.createFiles]: (state, { payload }) => ({
       ...state,
-      challengeFiles: payload
+      challengeFiles: payload.map(challengeFile => ({
+        ...challengeFile,
+        seed: challengeFile.contents.slice(),
+        editableContents: getLines(
+          challengeFile.contents,
+          challengeFile.editableRegionBoundaries
+        ),
+        editableRegionBoundaries:
+          challengeFile.editableRegionBoundaries?.slice() ?? [],
+        seedEditableRegionBoundaries:
+          challengeFile.editableRegionBoundaries?.slice() ?? []
+      }))
     }),
     [actionTypes.updateFile]: (
       state,
-      { payload: { fileKey, editorValue, editableRegionBoundaries } }
+      { payload: { fileKey, contents, editableRegionBoundaries } }
     ) => {
       const updates = {};
       // if a given part of the payload is null, we leave that part of the state
       // unchanged
       if (editableRegionBoundaries !== null)
         updates.editableRegionBoundaries = editableRegionBoundaries;
-      if (editorValue !== null) updates.contents = editorValue;
-      if (editableRegionBoundaries !== null && editorValue !== null)
-        updates.editableContents = getLines(
-          editorValue,
-          editableRegionBoundaries
-        );
+      if (contents !== null) updates.contents = contents;
+      if (editableRegionBoundaries !== null && contents !== null)
+        updates.editableContents = getLines(contents, editableRegionBoundaries);
       return {
         ...state,
         challengeFiles: state.challengeFiles.map(challengeFile =>
@@ -108,15 +130,13 @@ export const reducer = handleActions(
         isBuildEnabled: true
       };
     },
-    [actionTypes.storedCodeFound]: (state, { payload }) => ({
-      ...state,
-      challengeFiles: state.challengeFiles.length
-        ? mergeChallengeFiles(state.challengeFiles, payload)
-        : payload
-    }),
     [actionTypes.initTests]: (state, { payload }) => ({
       ...state,
       challengeTests: payload
+    }),
+    [actionTypes.initHooks]: (state, { payload }) => ({
+      ...state,
+      challengeHooks: payload
     }),
     [actionTypes.updateTests]: (state, { payload }) => ({
       ...state,
@@ -144,10 +164,30 @@ export const reducer = handleActions(
         ? state.consoleOut
         : state.consoleOut.concat(payload, state.logsOut)
     }),
-    [actionTypes.initVisibleEditors]: state => ({
-      ...state,
-      visibleEditors: { [getTargetEditor(state.challengeFiles)]: true }
-    }),
+    [actionTypes.initVisibleEditors]: state => {
+      let persistingVisibleEditors = {};
+      const prevVisibleEditorKeys = Object.keys(state.visibleEditors);
+      if (prevVisibleEditorKeys.length > 1) {
+        // Restore states of relevant visible editors for the current challengeFiles
+        persistingVisibleEditors = prevVisibleEditorKeys
+          .filter(editorKey => {
+            return state.challengeFiles.find(
+              challengeFile => challengeFile.fileKey === editorKey
+            );
+          })
+          .reduce((visibleEditors, key) => {
+            visibleEditors[key] = state.visibleEditors[key];
+            return visibleEditors;
+          }, {});
+      }
+      return {
+        ...state,
+        visibleEditors: {
+          ...persistingVisibleEditors,
+          [getTargetEditor(state.challengeFiles)]: true
+        }
+      };
+    },
     [actionTypes.updateChallengeMeta]: (state, { payload }) => ({
       ...state,
       challengeMeta: { ...payload }
@@ -231,12 +271,23 @@ export const reducer = handleActions(
         [payload]: false
       }
     }),
-    [actionTypes.openModal]: (state, { payload }) => ({
+    [actionTypes.openModal]: (state, { payload }) => {
+      const isProjectPreviewModal = payload === 'projectPreview';
+
+      return {
+        ...state,
+        modal: {
+          ...state.modal,
+          [payload]: true
+        },
+        isProjectPreviewLoading: isProjectPreviewModal
+          ? true
+          : state.isProjectPreviewLoading
+      };
+    },
+    [actionTypes.setProjectPreviewLoading]: (state, { payload }) => ({
       ...state,
-      modal: {
-        ...state.modal,
-        [payload]: true
-      }
+      isProjectPreviewLoading: payload
     }),
     [actionTypes.executeChallenge]: state => ({
       ...state,
@@ -247,6 +298,36 @@ export const reducer = handleActions(
     [actionTypes.executeChallengeComplete]: state => ({
       ...state,
       isExecuting: false
+    }),
+    [actionTypes.askSocrates]: state => ({
+      ...state,
+      socratesHintState: {
+        hint: null,
+        isLoading: true,
+        error: null,
+        attempts: state.socratesHintState.attempts,
+        limit: state.socratesHintState.limit
+      }
+    }),
+    [actionTypes.askSocratesComplete]: (state, { payload }) => ({
+      ...state,
+      socratesHintState: {
+        hint: payload.hint,
+        isLoading: false,
+        error: null,
+        attempts: payload.attempts,
+        limit: payload.limit
+      }
+    }),
+    [actionTypes.askSocratesError]: (state, { payload }) => ({
+      ...state,
+      socratesHintState: {
+        hint: null,
+        isLoading: false,
+        error: payload.error,
+        attempts: payload.attempts ?? state.socratesHintState.attempts,
+        limit: payload.limit ?? state.socratesHintState.limit
+      }
     }),
     [actionTypes.setEditorFocusability]: (state, { payload }) => ({
       ...state,

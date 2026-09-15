@@ -7,13 +7,17 @@ interface PrismFormattedProps {
   text: string;
   useSpan?: boolean;
   noAria?: boolean;
+  dir?: 'auto' | 'ltr' | 'rtl';
+  lang?: string;
 }
 
 function PrismFormatted({
   className,
   text,
   useSpan,
-  noAria
+  noAria,
+  dir,
+  lang
 }: PrismFormattedProps): JSX.Element {
   const instructionsRef = useRef<HTMLDivElement>(null);
   const ElementName = useSpan ? 'span' : 'div';
@@ -27,6 +31,15 @@ function PrismFormatted({
     if (instructionsRef.current) {
       Prism.hooks.add('complete', enhancePrismAccessibility);
       Prism.highlightAllUnder(instructionsRef.current);
+
+      const preElements = instructionsRef.current.querySelectorAll('pre');
+      preElements.forEach((pre: HTMLPreElement) => {
+        if (pre.scrollWidth > pre.clientWidth) {
+          pre.setAttribute('tabIndex', '0');
+        } else {
+          pre.removeAttribute('tabIndex');
+        }
+      });
     }
   }, []);
 
@@ -34,6 +47,8 @@ function PrismFormatted({
     <ElementName
       className={className}
       dangerouslySetInnerHTML={{ __html: text }}
+      dir={dir}
+      lang={lang}
       ref={instructionsRef}
     />
   );

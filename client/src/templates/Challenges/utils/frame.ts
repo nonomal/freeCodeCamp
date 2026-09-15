@@ -1,33 +1,55 @@
-import { toString, flow } from 'lodash-es';
+import { flow } from 'lodash-es';
 import i18next, { type i18n } from 'i18next';
+
+import { prefixDoctype } from '@freecodecamp/challenge-builder/build';
+
+import {
+  version as _helperVersion,
+  type FCCTestRunner
+} from '../../../../../tools/client-plugins/browser-scripts/test-runner';
 
 import { format } from '../../../utils/format';
 import type {
   FrameDocument,
   PythonDocument
 } from '../../../../../tools/client-plugins/browser-scripts';
+import { Hooks } from '../../../redux/prop-types';
+import { pathPrefix } from '../../../../utils/gatsby/path-prefix';
+import {
+  alertKeyByVariant,
+  createPreviewAlertListener,
+  previewAlertMessageType
+} from './preview-messages';
+
+export const helperVersion = _helperVersion;
+
+declare global {
+  interface Window {
+    FCCTestRunner: FCCTestRunner;
+  }
+}
 
 const utilsFormat: <T>(x: T) => string = format;
 
-export interface Source {
+interface Source {
   index: string;
   contents?: string;
   editableContents: string;
-  original: { [key: string]: string };
 }
 
 export interface Context {
   window?: Window &
-    typeof globalThis & { i18nContent?: i18n; __pyodide: unknown };
-  document?: FrameDocument | PythonDocument;
+    typeof globalThis & {
+      i18nContent?: i18n;
+      __pyodide: unknown;
+      document: FrameDocument | PythonDocument;
+    };
   element: HTMLIFrameElement;
   build: string;
   sources: Source;
-  loadEnzyme?: () => void;
-}
-
-export interface TestRunnerConfig {
-  proxyLogger: ProxyLogger;
+  hooks?: Hooks;
+  type: 'dom' | 'javascript' | 'python';
+  loadEnzyme?: boolean;
 }
 
 export type ProxyLogger = (msg: string) => void;
@@ -69,10 +91,12 @@ export const scrollManager = new ScrollManager();
 // we use two different frames to make them all essentially pure functions
 // main iframe is responsible rendering the preview and is where we proxy the
 export const mainPreviewId = 'fcc-main-frame';
-// the test frame is responsible for running the assert tests
-const testId = 'fcc-test-frame';
 // the project preview frame demos the finished project
 export const projectPreviewId = 'fcc-project-preview-frame';
+const previewSandboxTokens = ['allow-scripts', 'allow-forms'] as const;
+export const previewSandbox = previewSandboxTokens.join(' ');
+
+const ASSET_PATH = `${pathPrefix}/js/test-runner/${helperVersion}/`;
 
 const DOCUMENT_NOT_FOUND_ERROR = 'misc.document-notfound';
 
@@ -86,10 +110,29 @@ const DOCUMENT_NOT_FOUND_ERROR = 'misc.document-notfound';
 // of the frame.  React dom errors already appear in the console, so onerror
 // does not need to pass them on to the default error handler.
 
-const createHeader = (id = mainPreviewId) => `
+// The "fcc-hide-header" class on line 95 is added to ensure that the CSSHelper class ignores this style element
+// during tests, preventing CSS-related test failures.
+
+const parentOrigin = () =>
+  typeof window === 'undefined' ? '*' : window.location.origin;
+
+const createHeader = (id = mainPreviewId) =>
+  `
   <base href='' />
+  <style class="fcc-hide-header">
+    head *, title, meta, link, script {
+      display: none !important;
+    }
+  </style>
   <script>
     window.__frameId = '${id}';
+    function __fccAlertParent(variant, externalLink) {
+      window.parent.postMessage({
+        type: '${previewAlertMessageType}',
+        variant: variant,
+        externalLink: externalLink
+      }, '${parentOrigin()}');
+    }
     window.onerror = function(msg) {
       const string = msg.toLowerCase();
       if (string.includes('script error')) {
@@ -105,14 +148,16 @@ const createHeader = (id = mainPreviewId) => `
       }
       if (element && element.nodeName === 'A' && new URL(element.href).hash === '') {
         e.preventDefault();
-        window.parent.window.alert(
-          i18nContent.t('misc.iframe-alert', { externalLink: element.href })
-        )
-      }
+        __fccAlertParent('external-link', element.href);      }
       if (element) {
         const href = element.getAttribute('href');
         if (!href || href[0] !== '#' && !href.match(/^https?:\\/\\//)) {
           e.preventDefault();
+        }
+        else if (href.match(/^#.+/)) {
+          e.preventDefault();
+          const scrollId = href.substring(1);
+          window.location.hash = scrollId;
         }
       }
     }, false);
@@ -120,9 +165,7 @@ const createHeader = (id = mainPreviewId) => `
       const action = e.target.getAttribute('action');
       e.preventDefault();
       if (action && action.match(/https?:\\/\\//)) {
-        window.parent.window.alert(
-          i18nContent.t('misc.iframe-form-submit-alert', { externalLink: action  })
-        )
+        __fccAlertParent('external-form', action);
       }
     }, false);
   </script>
@@ -142,20 +185,39 @@ function getContentDocument<T extends Document = FrameDocument>(
   return frameDocument as T;
 }
 
-export const runTestInTestFrame = async function (
-  document: Document,
-  test: string,
-  timeout: number
-): Promise<TestResult | undefined> {
-  const contentDocument = getContentDocument(document, testId);
-  if (contentDocument) {
-    return await Promise.race([
-      new Promise<
-        { pass: boolean } | { err: { message: string; stack?: string } }
-      >((_, reject) => setTimeout(() => reject('timeout'), timeout)),
-      contentDocument.__runTest(test)
-    ]);
-  }
+export const runTestsInTestFrame = async function (
+  tests: string[],
+  timeout: number,
+  type: 'dom' | 'javascript' | 'python'
+): Promise<TestResult[] | undefined> {
+  const runner = window?.FCCTestRunner.getRunner(type);
+
+  return runner?.runAllTests(tests, timeout);
+};
+
+export const prepTestRunner = async ({
+  sources,
+  loadEnzyme,
+  build,
+  hooks,
+  type
+}: {
+  sources: Source;
+  loadEnzyme?: boolean;
+  build: string;
+  hooks?: Hooks;
+  type: 'dom' | 'javascript' | 'python';
+}) => {
+  const source = type === 'dom' ? prefixDoctype({ build, sources }) : build;
+  await loadTestRunner(document);
+  await window?.FCCTestRunner.createTestRunner({
+    type,
+    code: sources,
+    source,
+    assetPath: ASSET_PATH,
+    hooks,
+    loadEnzyme
+  });
 };
 
 export const runPythonInFrame = function (
@@ -170,10 +232,55 @@ export const runPythonInFrame = function (
   void contentDocument?.__runPython(code);
 };
 
+const TEST_RUNNER_ID = 'fcc-test-runner';
+const createRunnerScript = (document: Document) => {
+  const script = document.createElement('script');
+  script.src = ASSET_PATH + 'index.js';
+  script.id = TEST_RUNNER_ID;
+  return script;
+};
+
+const loadTestRunner = async (document: Document) => {
+  const done = new Promise<void>((resolve, reject) => {
+    const alreadyLoaded = !!window?.FCCTestRunner;
+
+    if (alreadyLoaded) return resolve();
+
+    const script =
+      document.getElementById(TEST_RUNNER_ID) ?? createRunnerScript(document);
+
+    const errorListener = (err: ErrorEvent) => {
+      console.error(err);
+      reject(new Error('Test runner failed to load'));
+    };
+
+    script.addEventListener(
+      'load',
+      () => {
+        // Since it's loaded, we no longer need to listen for errors
+        script.removeEventListener('error', errorListener);
+        resolve();
+      },
+      { once: true }
+    );
+    script.addEventListener('error', errorListener, { once: true });
+
+    document.head.appendChild(script);
+  });
+  return done;
+};
+
+const withSandbox = (frame: HTMLIFrameElement, sandbox: boolean) => {
+  if (sandbox) frame.sandbox.add(...previewSandboxTokens);
+  return frame;
+};
+
 const createFrame =
-  (document: Document, id: string, title?: string) =>
+  (document: Document, id: string, title?: string, sandbox = true) =>
   (frameContext: Context) => {
-    const frame = document.createElement('iframe');
+    const frame = withSandbox(document.createElement('iframe'), sandbox);
+
+    frame.srcdoc = createContent(id, frameContext);
     frame.id = id;
     if (typeof title === 'string') {
       frame.title = i18next.t('misc.iframe-preview', { title });
@@ -185,39 +292,20 @@ const createFrame =
     };
   };
 
-const hiddenFrameClassName = 'hide-test-frame';
-const mountFrame =
-  (document: Document, id: string) => (frameContext: Context) => {
-    const { element }: { element: HTMLIFrameElement } = frameContext;
-    const oldFrame = document.getElementById(element.id) as HTMLIFrameElement;
-    if (oldFrame) {
-      element.className = oldFrame.className || hiddenFrameClassName;
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      oldFrame.parentNode!.replaceChild(element, oldFrame);
-      // only test frames can be added (and hidden) here, other frames must be
-      // added by react
-    } else if (id === testId) {
-      element.className = hiddenFrameClassName;
-      document.body.appendChild(element);
-    }
-    return {
-      ...frameContext,
-      element,
-      document: element.contentDocument,
-      window: element.contentWindow
-    };
-  };
-
-// Tests should not use functions that directly interact with the user, so
-// they're overridden. If tests need to spy on these functions, they can supply
-// the spy themselves.
-const overrideUserInteractions = (frameContext: Context) => {
-  if (frameContext.window) {
-    frameContext.window.prompt = () => null;
-    frameContext.window.alert = () => {};
-    frameContext.window.confirm = () => false;
+const mountFrame = (document: Document) => (frameContext: Context) => {
+  const { element }: { element: HTMLIFrameElement } = frameContext;
+  const oldFrame = document.getElementById(element.id) as HTMLIFrameElement;
+  if (oldFrame) {
+    element.className = oldFrame.className;
+    oldFrame.parentNode!.replaceChild(element, oldFrame);
+    // only test frames can be added (and hidden) here, other frames must be
+    // added by react
   }
-  return frameContext;
+  return {
+    ...frameContext,
+    element,
+    window: element.contentWindow
+  };
 };
 
 const noop = <T>(x: T) => x;
@@ -276,27 +364,17 @@ const updateProxyConsole =
 const updateWindowI18next = (frameContext: Context) => {
   // window does not exist if the preview is hidden, so we have to check.
   if (frameContext?.window) {
-    frameContext.window.i18nContent = i18next;
+    try {
+      frameContext.window.i18nContent = i18next;
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'SecurityError') {
+        // do nothing because this is due to sandboxing
+      } else {
+        // if it's NOT due to sandboxing, we need the diagnostics
+        throw err;
+      }
+    }
   }
-  return frameContext;
-};
-
-const initTestFrame = (frameReady?: () => void) => (frameContext: Context) => {
-  waitForFrame(frameContext)
-    .then(async () => {
-      const { sources, loadEnzyme } = frameContext;
-      // provide the file name and get the original source
-      const getUserInput = (fileName: string) =>
-        toString(sources[fileName as keyof typeof sources]);
-      await frameContext.document?.__initTestFrame({
-        code: sources,
-        getUserInput,
-        loadEnzyme
-      });
-
-      if (frameReady) frameReady();
-    })
-    .catch(handleDocumentNotFound);
   return frameContext;
 };
 
@@ -326,11 +404,9 @@ const initMainFrame =
           };
         }
 
-        if (
-          frameContext.document &&
-          '__initPythonFrame' in frameContext.document
-        ) {
-          await frameContext.document?.__initPythonFrame();
+        const document = frameContext.window?.document;
+        if (document && '__initPythonFrame' in document) {
+          await document.__initPythonFrame();
         }
         if (frameReady) frameReady();
       })
@@ -344,36 +420,42 @@ function handleDocumentNotFound(err: string) {
   }
 }
 
-const initPreviewFrame = () => (frameContext: Context) => frameContext;
+const initProjectPreviewFrame =
+  (frameReady?: () => void) => (frameContext: Context) => {
+    waitForFrame(frameContext)
+      .then(() => {
+        if (frameReady) frameReady();
+      })
+      .catch(handleDocumentNotFound);
+
+    return frameContext;
+  };
 
 const waitForFrame = (frameContext: Context) => {
-  return new Promise((resolve, reject) => {
-    if (!frameContext.document) {
+  return new Promise<void>((resolve, reject) => {
+    const rejectId = setTimeout(() => {
+      // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
       reject(DOCUMENT_NOT_FOUND_ERROR);
-    } else if (frameContext.document.readyState === 'loading') {
-      frameContext.document.addEventListener('DOMContentLoaded', resolve);
-    } else {
-      resolve(null);
-    }
+    }, 10000);
+
+    // We have to add the listener to the frame, not its contentWindow, because
+    // the latter does not receive the load event in Safari. It does not
+    // matter which we use for Chrome and Firefox.
+    frameContext.element?.addEventListener('load', () => {
+      clearTimeout(rejectId);
+      resolve();
+    });
   });
 };
 
-function writeToFrame(content: string, frame?: FrameDocument) {
-  // it's possible, if the preview is rapidly opened and closed, for the frame
-  // to be null at this point.
-  if (frame) {
-    frame.open();
-    frame.write(content);
-    frame.close();
-  }
-}
+const createContent = (
+  id: string,
+  { build, sources }: { build: string; sources: Source; hooks?: Hooks }
+) => {
+  return prefixDoctype({ build: createHeader(id) + build, sources });
+};
 
-const writeContentToFrame = (frameContext: Context) => {
-  writeToFrame(
-    createHeader(frameContext.element.id) + frameContext.build,
-    frameContext.document
-  );
-
+const restoreScrollPosition = (frameContext: Context) => {
   scrollManager.registerScrollEventListener(frameContext.element);
 
   if (scrollManager.getPreviewScrollPosition()) {
@@ -394,33 +476,44 @@ export const createMainPreviewFramer = (
     init: initMainFrame,
     proxyLogger,
     frameReady,
-    frameTitle
+    frameTitle,
+    sandbox: false
   });
 
 export const createProjectPreviewFramer = (
   document: Document,
-  frameTitle: string
+  frameTitle: string,
+  frameReady?: () => void
 ): ((args: Context) => void) =>
   createFramer({
     document,
     id: projectPreviewId,
-    init: initPreviewFrame,
-    frameTitle
+    init: initProjectPreviewFrame,
+    frameReady,
+    frameTitle,
+    sandbox: true
   });
 
-export const createTestFramer = (
-  document: Document,
-  proxyLogger: ProxyLogger,
-  frameReady: () => void
-): ((args: Context) => void) =>
-  createFramer({
-    document,
-    id: testId,
-    init: initTestFrame,
-    proxyLogger,
-    frameReady,
-    updateWindowFunctions: overrideUserInteractions
+const alertListeners = new Map<string, (event: MessageEvent) => void>();
+
+const listenForPreviewAlerts = (frameContext: Context) => {
+  if (typeof window === 'undefined') return frameContext;
+
+  const { element } = frameContext;
+  const previous = alertListeners.get(element.id);
+  if (previous) window.removeEventListener('message', previous);
+
+  const listener: (event: MessageEvent) => void = createPreviewAlertListener({
+    frame: element,
+    showAlert: ({ variant, externalLink }) =>
+      window.alert(i18next.t(alertKeyByVariant[variant], { externalLink }))
   });
+
+  alertListeners.set(element.id, listener);
+  window.addEventListener('message', listener);
+
+  return frameContext;
+};
 
 const createFramer = ({
   document,
@@ -429,7 +522,8 @@ const createFramer = ({
   proxyLogger,
   frameReady,
   frameTitle,
-  updateWindowFunctions
+  updateWindowFunctions,
+  sandbox
 }: {
   document: Document;
   id: string;
@@ -438,13 +532,15 @@ const createFramer = ({
   frameReady?: () => void;
   frameTitle?: string;
   updateWindowFunctions?: (frameContext: Context) => Context;
+  sandbox: boolean;
 }) =>
   flow(
-    createFrame(document, id, frameTitle),
-    mountFrame(document, id),
+    createFrame(document, id, frameTitle, sandbox),
+    mountFrame(document),
+    listenForPreviewAlerts,
     updateWindowFunctions ?? noop,
-    updateProxyConsole(proxyLogger),
-    updateWindowI18next,
-    writeContentToFrame,
+    sandbox ? noop : updateProxyConsole(proxyLogger),
+    sandbox ? noop : updateWindowI18next,
+    sandbox ? noop : restoreScrollPosition,
     init(frameReady, proxyLogger)
   ) as (args: Context) => void;

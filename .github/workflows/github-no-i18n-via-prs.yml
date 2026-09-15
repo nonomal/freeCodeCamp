@@ -4,18 +4,15 @@ on:
     branches:
       - 'main'
     paths:
-      - 'curriculum/challenges/**/*.md'
-      - '!curriculum/challenges/english/**'
       - 'client/i18n/locales/**/intro.json'
       - 'client/i18n/locales/**/translations.json'
       - '!client/i18n/locales/english/**'
-      - 'docs/i18n/**'
 
 jobs:
   has-translation:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/github-script@d7906e4ad0b1822421a7e6a35d5ca353c962f410 # v6
+      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         with:
           github-token: ${{secrets.CAMPERBOT_NO_TRANSLATE}}
           script: |
@@ -26,7 +23,7 @@ jobs:
             }).catch(() => ({status: 404}));
             if (context.payload.pull_request.user.login !== "camperbot" && isDev.status !== 200) {
               core.setFailed('This PR appears to touch translated curriculum files.')
-              github.rest.issues.createComment({
+              await github.rest.issues.createComment({
                 issue_number: context.issue.number,
                 owner: context.repo.owner,
                 repo: context.repo.repo,

@@ -1,9 +1,14 @@
 // We have to specify pyodide.js because we need to import that file (not .mjs)
-// and 'import' defaults to .mjs
+// and 'import' defaults to .mjs.
+
+// This is to do with how webpack handles node fallbacks - it uses the node
+// resolution algorithm to find the file, but that requires the full file name.
+// We can't add the extension, because it's in a bundle we're importing. However
+// we can import the .js file and then the strictness does not apply.
 import { loadPyodide, type PyodideInterface } from 'pyodide/pyodide.js';
 import pkg from 'pyodide/package.json';
 import type { PyProxy, PythonError } from 'pyodide/ffi';
-import * as helpers from '@freecodecamp/curriculum-helpers';
+import { formatException } from '@freecodecamp/curriculum-helpers';
 
 const ctx: Worker & typeof globalThis = self as unknown as Worker &
   typeof globalThis;
@@ -16,7 +21,6 @@ interface PythonRunEvent extends MessageEvent {
     code: {
       contents: string;
       editableContents: string;
-      original: { [id: string]: string };
     };
   };
 }
@@ -55,13 +59,9 @@ async function setupPyodide() {
   Object.freeze(self);
 
   // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-  pyodide.FS.writeFile(
-    '/home/pyodide/ast_helpers.py',
-    helpers.python.astHelpers,
-    {
-      encoding: 'utf8'
-    }
-  );
+  pyodide.FS.writeFile('/home/pyodide/format_exception.py', formatException, {
+    encoding: 'utf8'
+  });
 
   ignoreRunMessages = true;
   postMessage({ type: 'stopped' });
@@ -101,6 +101,10 @@ function initRunPython() {
     };
   }
 
+  function __interruptExecution() {
+    postMessage({ type: 'reset' });
+  }
+
   // I tried setting jsglobals here, to provide 'input' and 'print' to python,
   // without having to modify the global window object. However, it didn't work
   // because pyodide needs access to that object. Instead, I used
@@ -109,7 +113,8 @@ function initRunPython() {
   // Make print available to python
   pyodide.registerJsModule('jscustom', {
     print,
-    input
+    input,
+    __interruptExecution
   });
   // Create fresh globals each time user code is run.
   // eslint-disable-next-line @typescript-eslint/no-unsafe-call
@@ -118,20 +123,29 @@ function initRunPython() {
   // have this set by default.
   // eslint-disable-next-line @typescript-eslint/no-unsafe-call
   globals.set('__name__', '__main__');
+
   // The runPython helper is a shortcut for running python code with our
   // custom globals.
   const runPython = (pyCode: string) =>
     pyodide!.runPython(pyCode, { globals }) as unknown;
+
   runPython(`
+  from pyodide.ffi import JsException
+
   import jscustom
   from jscustom import print
   from jscustom import input
+
   def __wrap(func):
     def fn(*args):
-      data = func(*args)
-      if data.type == 'cancel':
-        raise KeyboardInterrupt(data.value)
-      return data.value
+      try:
+        data = func(*args)
+        if data.type == 'cancel':
+          raise KeyboardInterrupt(data.value)
+        return data.value
+      except JsException:
+        jscustom.__interruptExecution()
+        raise
     return fn
   input = __wrap(input)
   `);
@@ -152,7 +166,7 @@ function initRunPython() {
   `);
   runPython(`
 def print_exception():
-    from ast_helpers import format_exception
+    from format_exception import format_exception
     formatted = format_exception(exception=sys.last_value, traceback=sys.last_traceback, filename="<exec>", new_filename="main.py")
     print(formatted)
 `);

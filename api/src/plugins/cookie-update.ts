@@ -1,6 +1,6 @@
 import { FastifyPluginCallback } from 'fastify';
 
-import type { CookieSerializeOptions } from './cookies';
+import type { CookieSerializeOptions } from './cookies.js';
 
 type Options = { cookies: string[]; attributes: CookieSerializeOptions };
 
@@ -30,6 +30,9 @@ export const cookieUpdate: FastifyPluginCallback<Options> = (
       const raw = unsigned.valid ? unsigned.value : oldCookie;
       void reply.setCookie(cookie, raw, options.attributes);
     }
+
+    request.log.trace('Updated cookies');
+
     next();
   });
 

@@ -1,26 +1,4 @@
-import { challengeTypes } from '../../../shared/config/challenge-types';
-import { SuperBlocks } from '../../../shared/config/curriculum';
-
-// Show a grid layout on the superblock level
-
-const gridBasedSuperBlocks = [
-  SuperBlocks.RespWebDesignNew,
-  SuperBlocks.JsAlgoDataStructNew,
-  SuperBlocks.SciCompPy,
-  SuperBlocks.A2English
-];
-
-export const isGridBased = (
-  superBlock: SuperBlocks,
-  challengeType: unknown = null
-) => {
-  // Python projects should not be displayed as a grid, but should be displayed
-  // as a list of projects. Otherwise, if we do not do this the project will be
-  // shown as a single certification project.
-
-  if (challengeType === challengeTypes.pythonProject) return false;
-  return gridBasedSuperBlocks.includes(superBlock);
-};
+import { challengeTypes } from '@freecodecamp/shared/config/challenge-types';
 
 // Show a single project in a certification layout
 
@@ -33,15 +11,22 @@ const projectBasedChallengeTypes = [
   challengeTypes.multifileCertProject,
   challengeTypes.exam,
   challengeTypes.codeAllyPractice,
-  challengeTypes.multifilePythonCertProject
+  challengeTypes.multifilePythonCertProject,
+  challengeTypes.lab,
+  challengeTypes.jsLab,
+  challengeTypes.pyLab,
+  challengeTypes.dailyChallengeJs,
+  challengeTypes.dailyChallengePy,
+  challengeTypes.freeCodeCampOsPractice,
+  challengeTypes.freeCodeCampOsCert
 ];
 
 export const isProjectBased = (
   challengeType: number,
   blockDashedName: unknown = null
 ) => {
-  // Is project based but should be collapsable, this differs from the
-  // other projects which are not collapsable.
+  // Is project based but should be collapsible, this differs from the
+  // other projects which are not collapsible.
   if (blockDashedName === 'take-home-projects') return false;
 
   return projectBasedChallengeTypes.includes(challengeType);

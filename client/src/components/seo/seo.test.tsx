@@ -1,21 +1,26 @@
 import React from 'react';
-import * as Gatsby from 'gatsby';
 import { render } from '@testing-library/react';
 import Helmet from 'react-helmet';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { SuperBlocks } from '@freecodecamp/shared/config/curriculum';
 
-import SEO from './index';
+import SEO, { type ListItem } from './index';
 
-const useStaticQuery = jest.spyOn(Gatsby, `useStaticQuery`);
 const mockUseStaticQuery = {
   site: {
     siteMetadata: {
       title: 'freeCodeCamp',
-      siteUrl: 'freeCodeCamp.org'
+      siteUrl: 'https://www.freecodecamp.org'
     }
   }
 };
 
-jest.mock('react-i18next', () => ({
+vi.mock('gatsby', () => ({
+  useStaticQuery: vi.fn(() => mockUseStaticQuery),
+  graphql: vi.fn()
+}));
+
+vi.mock('react-i18next', () => ({
   useTranslation: () => {
     return {
       t: (str: string) => ({
@@ -27,12 +32,8 @@ jest.mock('react-i18next', () => ({
 }));
 
 describe('<SEO />', () => {
-  beforeEach(() => {
-    useStaticQuery.mockImplementation(() => mockUseStaticQuery);
-  });
-
   afterEach(() => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   it('renders', () => {
@@ -57,5 +58,42 @@ describe('<SEO />', () => {
     );
 
     expect(structuredDataScript).toBeTruthy();
+  });
+
+  it('injects valid JSON-LD with one ItemList entry per superblock', () => {
+    render(<SEO />);
+
+    const helmet = Helmet.peek();
+    const script = helmet.scriptTags.find(
+      ({ type }) => type === 'application/ld+json'
+    );
+    expect(script).toBeTruthy();
+
+    const data = JSON.parse(script!.innerHTML) as {
+      '@context': string;
+      '@type': string;
+      itemListElement: ListItem[];
+    };
+
+    expect(data['@context']).toBe('https://schema.org');
+    expect(data['@type']).toBe('ItemList');
+    expect(data.itemListElement).toHaveLength(
+      Object.values(SuperBlocks).length
+    );
+
+    data.itemListElement.forEach((listItem, index) => {
+      expect(listItem['@type']).toBe('ListItem');
+      expect(listItem.position).toBe(index + 1);
+
+      const { item } = listItem;
+      expect(item['@type']).toBe('Course');
+      expect(item.url).toContain(`/learn/${Object.values(SuperBlocks)[index]}`);
+      expect(item.name).toBeTruthy();
+      expect(item.description).toBeTruthy();
+      expect(item.provider['@type']).toBe('Organization');
+      expect(item.provider.name).toBe('freeCodeCamp');
+      expect(item.provider.sameAs).toBe('https://freecodecamp.org');
+      expect(item.provider.nonprofitStatus).toBe('Nonprofit501c3');
+    });
   });
 });

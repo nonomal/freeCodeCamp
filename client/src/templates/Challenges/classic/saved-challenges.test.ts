@@ -1,3 +1,4 @@
+import { describe, it, expect } from 'vitest';
 import type {
   ChallengeFile,
   SavedChallengeFile
@@ -5,39 +6,33 @@ import type {
 import { mergeChallengeFiles } from './saved-challenges';
 
 const jsChallenge = {
-  id: '1',
   contents: 'js contents',
   fileKey: 'jsFileKey',
   name: 'name',
   ext: 'js' as const,
-  head: 'head',
-  tail: 'tail',
   history: [],
-  seed: 'original js contents'
+  seed: 'original js contents',
+  path: 'index.js'
 };
 
 const cssChallenge = {
-  id: '2',
   contents: 'css contents',
   fileKey: 'cssFileKey',
   name: 'name',
   ext: 'css' as const,
-  head: 'head',
-  tail: 'tail',
   history: [],
-  seed: 'original css contents'
+  seed: 'original css contents',
+  path: 'styles.css'
 };
 
 const htmlChallenge = {
-  id: '3',
   contents: 'html contents',
   fileKey: 'htmlFileKey',
   name: 'name',
   ext: 'html' as const,
-  head: 'head',
-  tail: 'tail',
   history: [],
-  seed: 'original html contents'
+  seed: 'original html contents',
+  path: 'index.html'
 };
 
 const savedJsChallenge: SavedChallengeFile = {
@@ -128,5 +123,21 @@ describe('mergeChallengeFiles', () => {
         contents: savedJsChallenge.contents
       }
     ]);
+  });
+
+  it('should not mutate the original files and savedChallengeFiles arrays', () => {
+    const files: ChallengeFile[] = [jsChallenge, cssChallenge];
+    const savedChallengeFiles: SavedChallengeFile[] = [
+      savedJsChallenge,
+      savedCssChallenge
+    ];
+
+    const filesCopy = JSON.parse(JSON.stringify(files));
+    const savedFilesCopy = JSON.parse(JSON.stringify(savedChallengeFiles));
+
+    mergeChallengeFiles(files, savedChallengeFiles);
+
+    expect(files).toEqual(filesCopy);
+    expect(savedChallengeFiles).toEqual(savedFilesCopy);
   });
 });

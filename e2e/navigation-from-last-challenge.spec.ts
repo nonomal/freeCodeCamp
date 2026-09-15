@@ -1,4 +1,4 @@
-import { test } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 import solution from './fixtures/build-a-personal-portfolio-webpage.json';
 import { clearEditor, focusEditor } from './utils/editor';
 import { isMacOS } from './utils/user-agent';
@@ -22,7 +22,6 @@ const rwdChallenge = {
   nextUrl:
     '/learn/2022/responsive-web-design/#build-a-personal-portfolio-webpage-project'
 };
-test.use({ storageState: 'playwright/.auth/certified-user.json' });
 test.describe('Navigation from the middle or end (URL solution)', () => {
   test('In the middle of a block should take you to the next challenge', async ({
     page
@@ -82,9 +81,11 @@ test.describe('Should take you to the next superblock (with editor solution)', (
 
     await page.keyboard.press('Control+Enter');
 
-    await page
-      .getByRole('button', { name: 'Submit and go to next challenge' })
-      .click();
+    const submitButton = page.locator(
+      '[data-playwright-test-label="independentLowerJaw-submit-button"]'
+    );
+    await expect(submitButton).toBeVisible();
+    await submitButton.click();
     await page.waitForURL(rwdChallenge.nextUrl);
   });
 });

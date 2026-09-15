@@ -4,7 +4,7 @@ import type {
   FastifyReply
 } from 'fastify';
 import fp from 'fastify-plugin';
-import { getRedirectParams } from '../utils/redirection';
+import { getRedirectParams } from '../utils/redirection.js';
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -19,6 +19,10 @@ const plugin: FastifyPluginCallback = (fastify, _options, done) => {
     'send401IfNoUser',
     async function (req: FastifyRequest, reply: FastifyReply) {
       if (!req.user) {
+        req.log.trace(
+          'Protected route accessed by unauthenticated user. Sent 401.'
+        );
+
         await reply.status(401).send({
           type: req.accessDeniedMessage?.type,
           message: req.accessDeniedMessage?.content
@@ -31,6 +35,9 @@ const plugin: FastifyPluginCallback = (fastify, _options, done) => {
     'redirectIfNoUser',
     async function (req: FastifyRequest, reply: FastifyReply) {
       if (!req.user) {
+        req.log.trace(
+          'Protected route accessed by unauthenticated user. Redirecting to login.'
+        );
         const { origin } = getRedirectParams(req);
         await reply.redirectWithMessage(origin, {
           type: 'info',
@@ -46,6 +53,9 @@ const plugin: FastifyPluginCallback = (fastify, _options, done) => {
     async function (req: FastifyRequest, reply: FastifyReply) {
       if (req.user) {
         const { returnTo } = getRedirectParams(req);
+
+        req.log.trace({ returnTo }, 'Signed-in user redirected');
+
         await reply.redirect(returnTo);
       }
     }

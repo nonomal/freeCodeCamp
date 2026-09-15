@@ -1,10 +1,10 @@
 import { Type } from '@fastify/type-provider-typebox';
-import { genericError } from '../types';
+import { genericError } from '../types.js';
 
 export const reportUser = {
   body: Type.Object({
     username: Type.String(),
-    reportDescription: Type.String()
+    reportDescription: Type.String({ minLength: 1 })
   }),
   response: {
     200: Type.Object({
@@ -16,8 +16,13 @@ export const reportUser = {
     }),
     400: Type.Object({
       type: Type.Literal('danger'),
-      message: Type.Literal('flash.provide-username')
+      message: Type.Literal('flash.report-error')
     }),
-    default: genericError
+    404: Type.Object({
+      type: Type.Literal('danger'),
+      message: Type.Literal('flash.report-error')
+    }),
+    403: genericError,
+    500: genericError
   }
 };

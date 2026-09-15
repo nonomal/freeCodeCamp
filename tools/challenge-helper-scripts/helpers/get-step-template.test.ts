@@ -1,5 +1,24 @@
-import ObjectID from 'bson-objectid';
-import { getStepTemplate } from './get-step-template';
+import { describe, it, expect } from 'vitest';
+import { ObjectId } from 'bson';
+import { getStepTemplate } from './get-step-template.js';
+import { ChallengeLang } from '@freecodecamp/shared/config/curriculum';
+import { challengeTypes } from '@freecodecamp/shared/config/challenge-types';
+
+const props = {
+  challengeId: new ObjectId('60d4ebe4801158d1abe1b18f'),
+  challengeSeeds: [
+    {
+      contents: '',
+      editableRegionBoundaries: [0, 2],
+      ext: 'html',
+      id: '',
+      key: 'indexhtml',
+      name: 'index'
+    }
+  ],
+  stepNum: 5,
+  challengeType: 0
+};
 
 // Note: evaluates at highlevel the process, but seedHeads and seedTails could
 // be tested if more specifics are needed.
@@ -34,24 +53,39 @@ Test 1
 --fcc-editable-region--
 \`\`\`\n`;
 
-    const props = {
-      challengeId: new ObjectID('60d4ebe4801158d1abe1b18f'),
-      challengeSeeds: {
-        indexhtml: {
+    expect(getStepTemplate(props)).toEqual(baseOutput);
+  });
+
+  it('should add lang property when challengeLang is passed', () => {
+    const frontMatter = `---
+id: 60d4ebe4801158d1abe1b18f
+title: Step 5
+challengeType: 0
+dashedName: step-5
+lang: es
+---`;
+
+    expect(
+      getStepTemplate({
+        ...props,
+        challengeLang: ChallengeLang.Spanish
+      })
+    ).match(new RegExp(`^${frontMatter}`));
+  });
+
+  it('includes the Python test scaffold for Python workshops', () => {
+    const template = getStepTemplate({
+      ...props,
+      challengeType: challengeTypes.python,
+      challengeSeeds: [
+        {
           contents: '',
           editableRegionBoundaries: [0, 2],
-          ext: 'html',
-          head: '',
-          id: '',
-          key: 'indexhtml',
-          name: 'index',
-          tail: ''
+          ext: 'py'
         }
-      },
-      stepNum: 5,
-      challengeType: 0
-    };
+      ]
+    });
 
-    expect(getStepTemplate(props)).toEqual(baseOutput);
+    expect(template).toContain('assert(runPython(');
   });
 });

@@ -1,18 +1,12 @@
+import { describe, test, expect, vi } from 'vitest';
 import Fastify from 'fastify';
 
-import mailer from './mailer';
+import mailer from './mailer.js';
 
 describe('mailer', () => {
-  it('should throw if not given a provider', async () => {
+  test('should send an email via the provider', async () => {
     const fastify = Fastify();
-    await expect(fastify.register(mailer)).rejects.toThrow(
-      "The mailer plugin must be passed a provider via register's options."
-    );
-  });
-
-  it('should send an email via the provider', async () => {
-    const fastify = Fastify();
-    const send = jest.fn();
+    const send = vi.fn();
     await fastify.register(mailer, { provider: { send } });
 
     const data = {
@@ -25,5 +19,29 @@ describe('mailer', () => {
     await fastify.sendEmail(data);
 
     expect(send).toHaveBeenCalledWith(data);
+  });
+
+  test('should emit a Sentry counter and re-throw when the provider fails to send', async () => {
+    const fastify = Fastify();
+    const sendError = new Error('send failed');
+    const send = vi.fn().mockRejectedValue(sendError);
+    await fastify.register(mailer, { provider: { send } });
+
+    const count = vi.fn();
+    // @ts-expect-error - Only mocks part of the Sentry object.
+    fastify.Sentry = { metrics: { count } };
+
+    const data = {
+      to: 'test@add.ress',
+      from: 'team@freecodecamp.org',
+      subject: 'test',
+      text: 'test'
+    };
+
+    await expect(fastify.sendEmail(data)).rejects.toThrow(sendError);
+
+    expect(count).toHaveBeenCalledWith('mailer.send_failed', 1, {
+      attributes: { result: 'error' }
+    });
   });
 });

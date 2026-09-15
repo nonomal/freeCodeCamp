@@ -3,12 +3,15 @@ import { bindActionCreators, Dispatch, AnyAction } from 'redux';
 import { createSelector } from 'reselect';
 import { connect } from 'react-redux';
 import { useTranslation } from 'react-i18next';
-import { Button, Modal } from '@freecodecamp/ui';
+import { Button, Modal, Spacer } from '@freecodecamp/ui';
 
-import { Spacer } from '../helpers';
-import { hardGoTo as navigate, closeSignoutModal } from '../../redux/actions';
+import { closeSignoutModal } from '../../redux/actions';
 import { isSignoutModalOpenSelector } from '../../redux/selectors';
-import { apiLocation } from '../../../config/env.json';
+import envData from '../../../config/env.json';
+import callGA from '../../analytics/call-ga';
+import { pathAfterSignout } from './path-after-signout';
+
+const { apiLocation } = envData;
 
 const mapStateToProps = createSelector(
   isSignoutModalOpenSelector,
@@ -20,20 +23,18 @@ const mapStateToProps = createSelector(
 const mapDispatchToProps = (dispatch: Dispatch<AnyAction>) =>
   bindActionCreators(
     {
-      navigate,
       closeSignoutModal
     },
     dispatch
   );
 
 type SignoutModalProps = {
-  navigate: (path: string) => void;
   closeSignoutModal: () => void;
   show: boolean;
 };
 
 function SignoutModal(props: SignoutModalProps): JSX.Element {
-  const { show, closeSignoutModal, navigate } = props;
+  const { show, closeSignoutModal } = props;
   const { t } = useTranslation();
 
   const handleModalHide = () => {
@@ -42,7 +43,16 @@ function SignoutModal(props: SignoutModalProps): JSX.Element {
 
   const handleSignout = () => {
     closeSignoutModal();
-    navigate(`${apiLocation}/signout`);
+    callGA({ event: 'sign_out', user_id: undefined });
+    const redirect = () => {
+      window.location.href = pathAfterSignout(window.location.pathname);
+    };
+    void fetch(`${apiLocation}/signout`, {
+      method: 'GET',
+      credentials: 'include'
+    })
+      .then(redirect)
+      .catch(redirect);
   };
 
   return (
@@ -64,7 +74,7 @@ function SignoutModal(props: SignoutModalProps): JSX.Element {
         >
           {t('signout.nevermind')}
         </Button>
-        <Spacer size='small' />
+        <Spacer size='xs' />
         <Button
           block={true}
           variant='danger'

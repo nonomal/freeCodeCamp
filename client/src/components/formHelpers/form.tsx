@@ -1,4 +1,4 @@
-import React, { FormEvent } from 'react';
+import React from 'react';
 import { Form } from 'react-final-form';
 import normalizeUrl from 'normalize-url';
 
@@ -9,7 +9,8 @@ import {
   composeValidators,
   fCCValidator,
   httpValidator,
-  sourceCodeLinkExistsValidator
+  sourceCodeLinkExistsValidator,
+  sourceCodeLinkPublicValidator
 } from './form-validators';
 import FormFields, { FormOptions } from './form-fields';
 
@@ -69,8 +70,11 @@ function validateFormValues(
     if (!isLocalLinkAllowed) {
       validators.push(localhostValidator);
     }
-    if (isSourceCodeLinkRequired) {
-      validators.push(sourceCodeLinkExistsValidator);
+    if (key === 'githubLink') {
+      if (isSourceCodeLinkRequired) {
+        validators.push(sourceCodeLinkExistsValidator);
+      }
+      validators.push(sourceCodeLinkPublicValidator);
     }
 
     const nullOrWarning = composeValidators(...validators)(value);
@@ -122,13 +126,15 @@ export const StrictSolutionForm = ({
       {({ handleSubmit, pristine, error }) => (
         <form
           id={`dynamic-${id}`}
-          onSubmit={handleSubmit as (e: FormEvent) => void}
+          onSubmit={event => {
+            void handleSubmit(event);
+          }}
           style={{ width: '100%' }}
           data-playwright-test-label='form-helper-form'
         >
           <FormFields formFields={formFields} options={options} />
           <BlockSaveButton
-            disabled={(pristine && !enableSubmit) || (error as boolean)}
+            disabled={(pristine && !enableSubmit) || Boolean(error)}
           >
             {buttonText}
           </BlockSaveButton>

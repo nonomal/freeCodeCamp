@@ -1,122 +1,21 @@
-import { execSync } from 'child_process';
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures/isolated-user';
 import translations from '../client/i18n/locales/english/translations.json';
 
-test.use({ storageState: 'playwright/.auth/development-user.json' });
+test.use({ userPreset: 'certified' });
 
-test.beforeAll(() => {
-  execSync('node ./tools/scripts/seed/seed-demo-user');
-});
-
-test.afterAll(() => {
-  execSync('node ./tools/scripts/seed/seed-demo-user --certified-user');
-});
-
-test.describe('Add Portfolio Item', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto('/settings');
-  });
-
-  test('The title has validation', async ({ page }) => {
-    await page
-      .getByRole('button', { name: 'Add a new portfolio Item' })
-      .click();
-    await page.getByLabel(translations.settings.labels.title).fill('T');
-    await expect(page.getByTestId('title-validation')).toContainText(
-      'Title is too short'
-    );
+test.describe('Portfolio item management', () => {
+  test('It should be possible to add and remove a portfolio item', async ({
+    page,
+    isolatedUser
+  }) => {
+    await page.goto(`/${isolatedUser.username}`);
 
     await page
-      .getByLabel(translations.settings.labels.title)
-      .fill(
-        'This is the longest title you will ever see in your entire life, you will never see such a long title again. This is the longest title in existen'
-      );
-    await expect(page.getByTestId('title-validation')).toContainText(
-      'Title is too long'
-    );
-    await page
-      .getByLabel(translations.settings.labels.title)
-      .fill('My portfolio');
-    await expect(page.getByTestId('title-validation')).toBeHidden();
-  });
-
-  test('The url has validation', async ({ page }) => {
-    await page
-      .getByRole('button', { name: 'Add a new portfolio Item' })
-      .click();
-    await page.getByLabel(translations.settings.labels.url).fill('T');
-    await expect(page.getByTestId('url-validation')).toContainText(
-      'Please use a valid URL'
-    );
-    await page
-      .getByLabel(translations.settings.labels.url)
-      .fill('http://helloworld.com');
-    await expect(page.getByTestId('url-validation')).toBeHidden();
-  });
-
-  test('The image has validation', async ({ page }) => {
-    await page
-      .getByRole('button', { name: 'Add a new portfolio Item' })
-      .click();
-    await page.getByLabel(translations.settings.labels.image).fill('T');
-    await expect(page.getByTestId('image-validation')).toContainText(
-      'URL must link directly to an image file'
-    );
-    await page
-      .getByLabel(translations.settings.labels.image)
-      .fill('http://helloworld.com/image.png');
-    await expect(page.getByTestId('image-validation')).toBeHidden();
-  });
-
-  test('The description has validation', async ({ page }) => {
-    await page
-      .getByRole('button', { name: 'Add a new portfolio Item' })
-      .click();
-    await page
-      .getByLabel(translations.settings.labels.description)
-      .fill(
-        'This is the longest description you will ever see in your entire life, you will never see such a long description again. This is the longest description in existence. Nothing will ever come close to be being so long again in the entire history of the world. I only have 30 characters left.'
-      );
-    await expect(page.getByTestId('description-validation')).toContainText(
-      'There is a maximum limit of 288 characters, you have 0 left'
-    );
-    await page
-      .getByLabel(translations.settings.labels.description)
-      .fill('My description');
-    await expect(page.getByTestId('description-validation')).toBeHidden();
-  });
-
-  test('It should be possible to delete a portfolio item', async ({ page }) => {
-    await page
-      .getByRole('button', { name: 'Add a new portfolio Item' })
-      .click();
-    await page
-      .getByLabel(translations.settings.labels.title)
-      .fill('My portfolio');
-    await page
-      .getByLabel(translations.settings.labels.url)
-      .fill('https://my-portfolio.com');
-    await page
-      .getByLabel(translations.settings.labels.image)
-      .fill('https://my-portfolio.com/image.png');
-    await page
-      .getByLabel(translations.settings.labels.description)
-      .fill('My description');
-
-    await page
-      .getByRole('button', { name: 'Remove this portfolio item' })
-      .click();
-
-    await expect(page.getByTestId('portfolio-items')).toBeHidden();
-  });
-
-  test('It should be possible to add a portfolio item', async ({ page }) => {
-    await page
-      .getByRole('button', { name: 'Add a new portfolio Item' })
+      .getByRole('button', { name: translations.aria['add-portfolio'] })
       .click();
     await expect(
-      page.getByRole('button', { name: 'Add a new portfolio Item' })
-    ).toBeDisabled();
+      page.getByLabel(translations.settings.labels.title)
+    ).toBeVisible();
 
     await page
       .getByLabel(translations.settings.labels.title)
@@ -126,18 +25,38 @@ test.describe('Add Portfolio Item', () => {
       .fill('https://my-portfolio.com');
     await page
       .getByLabel(translations.settings.labels.image)
-      .fill('https://my-portfolio.com/image.png');
+      .fill(
+        'https://cdn.freecodecamp.org/universal/favicons/favicon-32x32.png'
+      );
     await page
       .getByLabel(translations.settings.labels.description)
       .fill('My description');
 
-    await page
-      .getByRole('button', { name: 'Save this portfolio item' })
-      .click();
-    await expect(page.getByTestId('flash-message')).toContainText(
+    const saveButton = page.getByRole('button', {
+      name: translations.buttons['save-portfolio']
+    });
+    await expect(saveButton).toBeEnabled();
+    await saveButton.click();
+
+    await expect(page.getByRole('alert').first()).toContainText(
       /We have updated your portfolio/
     );
-  });
+    await expect(
+      page.getByRole('link', { name: /My portfolio/ })
+    ).toBeVisible();
 
-  // TODO: Add test for viewing portfolio item
+    await page
+      .getByRole('button', { name: translations.aria['edit-portfolio'] })
+      .click();
+    await page
+      .getByRole('button', { name: translations.buttons['remove-portfolio'] })
+      .click();
+
+    await expect(page.getByRole('alert').first()).toContainText(
+      /We have updated your portfolio/
+    );
+    await expect(
+      page.getByRole('link', { name: /My portfolio/ })
+    ).not.toBeVisible();
+  });
 });

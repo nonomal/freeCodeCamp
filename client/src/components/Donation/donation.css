@@ -586,8 +586,14 @@ a.patreon-button:hover {
   margin-inline-start: 0.25em;
 }
 
-.faq-item h3 {
+.faq-question-heading {
+  margin: 0;
+}
+
+.faq-item .faq-question-title {
+  color: var(--secondary-color);
   font-size: 1rem;
+  font-weight: 700;
   line-height: 1.5;
   margin: 0;
 }
@@ -668,7 +674,8 @@ a.patreon-button:hover {
 
 .dark-palette .gradient-container {
   position: relative;
-  background: linear-gradient(
+  background:
+    linear-gradient(
       -10deg,
       rgb(7 40 94) 35%,
       rgba(237, 202, 216, 0) 75%,
@@ -679,7 +686,8 @@ a.patreon-button:hover {
 
 .light-palette .gradient-container {
   position: relative;
-  background: linear-gradient(
+  background:
+    linear-gradient(
       -10deg,
       rgb(223 243 255) 35%,
       rgba(237, 202, 216, 0) 75%,
@@ -693,7 +701,8 @@ a.patreon-button:hover {
 }
 
 .light-palette .gradient-foreground {
-  background-image: linear-gradient(
+  background-image:
+    linear-gradient(
       -10deg,
       rgb(0, 51, 133) 35%,
       rgba(237, 202, 216, 0) 75%,
@@ -705,7 +714,8 @@ a.patreon-button:hover {
 }
 
 .dark-palette .gradient-foreground {
-  background-image: linear-gradient(
+  background-image:
+    linear-gradient(
       -10deg,
       rgb(223 243 255) 35%,
       rgba(237, 202, 216, 0) 75%,
@@ -882,6 +892,107 @@ a.patreon-button:hover {
     opacity: 0;
   }
 }
+
+/* AB testing */
+p.donation-animation-bullet-1-b {
+  animation-name: animation-bullet-1-b;
+  margin-top: 450px;
+  font-size: 2.5rem;
+}
+
+.donation-animation-bullet-2-b {
+  animation-name: animation-bullet-2-b;
+}
+
+.donation-animation-bullet-3-b {
+  animation-name: animation-bullet-3-b;
+}
+
+.donation-animation-bullet-4-b {
+  animation-name: animation-bullet-4-b;
+}
+
+.donation-animation-bullet-1-b,
+.donation-animation-bullet-2-b,
+.donation-animation-bullet-3-b,
+.donation-animation-bullet-4-b {
+  opacity: 0;
+  animation-fill-mode: forwards;
+  animation-duration: 20s;
+  animation-timing-function: normal;
+}
+
+@keyframes animation-bullet-1-b {
+  1% {
+    opacity: 0;
+  }
+  2.5% {
+    opacity: 1;
+  }
+  15% {
+    opacity: 1;
+  }
+  15.5% {
+    opacity: 0;
+  }
+}
+
+@keyframes animation-bullet-2-b {
+  15.5% {
+    opacity: 0;
+    margin-top: 40px;
+  }
+  16% {
+    opacity: 1;
+    margin-top: 80px;
+  }
+  33.5% {
+    opacity: 1;
+    margin-top: 80px;
+  }
+  34% {
+    opacity: 0;
+    margin-top: 120px;
+  }
+}
+
+@keyframes animation-bullet-3-b {
+  34.5% {
+    opacity: 0;
+    margin-top: 40px;
+  }
+  35% {
+    opacity: 1;
+    margin-top: 80px;
+  }
+  60% {
+    opacity: 1;
+    margin-top: 80px;
+  }
+  60.5% {
+    opacity: 0;
+    margin-top: 120px;
+  }
+}
+
+@keyframes animation-bullet-4-b {
+  60.5% {
+    opacity: 0;
+    margin-top: 40px;
+  }
+  61% {
+    opacity: 1;
+    margin-top: 80px;
+  }
+  85% {
+    opacity: 1;
+    margin-top: 80px;
+  }
+  85.5% {
+    opacity: 0;
+  }
+}
+/* END AB testing */
 
 .tester-text {
   margin-top: 80px;

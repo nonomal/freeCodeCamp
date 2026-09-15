@@ -1,35 +1,49 @@
-import React from 'react';
-
+import React, { useEffect } from 'react';
+import { initializeMathJax, isMathJaxAllowed } from '../../../utils/math-jax';
 import PrismFormatted from './prism-formatted';
 import './challenge-description.css';
+import { generateGithubLink } from '../../../components/create-github-link';
+import { getChallengeContentLangProps } from '../../../utils/challenge-content-lang';
 
-type Challenge = {
-  block?: string;
+type Props = {
   description?: string;
   instructions?: string;
   superBlock?: string;
+  challengeId: string;
+  block: string;
 };
 
-function ChallengeDescription(challenge: Challenge): JSX.Element {
-  const sbClass = challenge.superBlock ? challenge.superBlock : '';
-  const bClass = challenge.block ? challenge.block : '';
+const ChallengeDescription = ({
+  description,
+  instructions,
+  superBlock,
+  challengeId,
+  block
+}: Props) => {
+  useEffect(() => {
+    if (superBlock && isMathJaxAllowed(superBlock)) {
+      initializeMathJax();
+    }
+  }, [superBlock]);
 
+  const githubLink = generateGithubLink(challengeId, block);
+  const contentLangProps = getChallengeContentLangProps(superBlock);
   return (
     <div
-      className={`challenge-instructions ${sbClass} ${bClass}`}
+      className={'challenge-instructions mathjax-support'}
       data-playwright-test-label='challenge-description'
+      data-github-link={githubLink}
     >
-      {challenge.description && <PrismFormatted text={challenge.description} />}
-      {challenge.instructions && (
-        <>
-          <hr />
-          <PrismFormatted text={challenge.instructions} />
-        </>
+      {description && (
+        <PrismFormatted text={description} {...contentLangProps} />
       )}
-      <hr />
+      {instructions && description && <hr />}
+      {instructions && (
+        <PrismFormatted text={instructions} {...contentLangProps} />
+      )}
     </div>
   );
-}
+};
 
 ChallengeDescription.displayName = 'ChallengeDescription';
 

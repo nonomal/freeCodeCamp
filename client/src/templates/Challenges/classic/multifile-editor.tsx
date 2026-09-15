@@ -2,19 +2,14 @@ import React, { useRef } from 'react';
 import { connect } from 'react-redux';
 import { ReflexContainer, ReflexElement, ReflexSplitter } from 'react-reflex';
 import { createSelector } from 'reselect';
-import {
-  userSelector,
-  isDonationModalOpenSelector
-} from '../../../redux/selectors';
+import { isDonationModalOpenSelector } from '../../../redux/selectors';
 import {
   canFocusEditorSelector,
-  consoleOutputSelector,
   visibleEditorsSelector
 } from '../redux/selectors';
 import { getTargetEditor } from '../utils/get-target-editor';
+import { isRtlLanguage } from '../../../utils/is-rtl-language';
 import './editor.css';
-import { FileKey } from '../../../redux/prop-types';
-import { Themes } from '../../../components/settings/theme';
 import Editor, { type EditorProps } from './editor';
 
 export type VisibleEditors = {
@@ -23,7 +18,9 @@ export type VisibleEditors = {
   stylescss?: boolean;
   scriptjs?: boolean;
   indexts?: boolean;
+  indextsx?: boolean;
   mainpy?: boolean;
+  tsconfigjson?: boolean;
 };
 type MultifileEditorProps = Pick<
   EditorProps,
@@ -49,20 +46,10 @@ type MultifileEditorProps = Pick<
 const mapStateToProps = createSelector(
   visibleEditorsSelector,
   canFocusEditorSelector,
-  consoleOutputSelector,
   isDonationModalOpenSelector,
-  userSelector,
-  (
-    visibleEditors: VisibleEditors,
-    canFocus: boolean,
-    output: string[],
-    open,
-    { theme }: { theme: Themes }
-  ) => ({
+  (visibleEditors: VisibleEditors, canFocus: boolean, open) => ({
     visibleEditors,
-    canFocus: open ? false : canFocus,
-    output,
-    theme
+    canFocus: open ? false : canFocus
   })
 );
 
@@ -85,7 +72,9 @@ const MultifileEditor = (props: MultifileEditorProps) => {
       scriptjs,
       indexts,
       indexjsx,
-      mainpy
+      indextsx,
+      mainpy,
+      tsconfigjson
     },
     usesMultifileEditor,
     showProjectPreview
@@ -106,12 +95,15 @@ const MultifileEditor = (props: MultifileEditorProps) => {
 
   const editorKeys = [];
 
+  // The order of the keys should match the order set by sortChallengeFiles
   if (indexjsx) editorKeys.push('indexjsx');
+  if (indextsx) editorKeys.push('indextsx');
   if (indexhtml) editorKeys.push('indexhtml');
   if (stylescss) editorKeys.push('stylescss');
   if (scriptjs) editorKeys.push('scriptjs');
   if (mainpy) editorKeys.push('mainpy');
   if (indexts) editorKeys.push('indexts');
+  if (tsconfigjson) editorKeys.push('tsconfigjson');
 
   const editorAndSplitterKeys = editorKeys.reduce((acc: string[] | [], key) => {
     if (acc.length === 0) {
@@ -120,6 +112,10 @@ const MultifileEditor = (props: MultifileEditorProps) => {
       return [...acc, `${key}-splitter`, key];
     }
   }, []);
+
+  if (isRtlLanguage) {
+    editorAndSplitterKeys.reverse();
+  }
 
   return (
     <ReflexContainer
@@ -152,7 +148,7 @@ const MultifileEditor = (props: MultifileEditorProps) => {
                     containerRef={containerRef}
                     description={targetEditor === key ? description : ''}
                     editorRef={editorRef}
-                    fileKey={key as FileKey}
+                    fileKey={key}
                     initialTests={initialTests}
                     isMobileLayout={isMobileLayout}
                     isUsingKeyboardInTablist={isUsingKeyboardInTablist}

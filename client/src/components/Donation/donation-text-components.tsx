@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useTranslation, Trans } from 'react-i18next';
 import { useFeature } from '@growthbook/growthbook-react';
+import { Spacer } from '@freecodecamp/ui';
 
 import Caret from '../../assets/icons/caret';
-import { Spacer } from '../helpers';
 import GreenPass from '../../assets/icons/green-pass';
 
 const POBOX = (
@@ -25,7 +25,7 @@ export const CtaText = (): JSX.Element => {
       <h1 data-playwright-test-label='main-head' id='content-start'>
         {t('donate.help-more')}
       </h1>
-      <Spacer size='medium' />
+      <Spacer size='m' />
       <p data-playwright-test-label='donate-text-1'>{t('donate.efficiency')}</p>
       <p data-playwright-test-label='donate-text-2'>
         {t('donate.why-donate-1')}
@@ -39,18 +39,20 @@ export const CtaText = (): JSX.Element => {
 
 export const ThankYouMessage = ({
   askForDonation,
-  thankContributon
+  thankContribution
 }: {
   askForDonation: boolean;
-  thankContributon?: boolean;
+  thankContribution?: boolean;
 }): JSX.Element => {
   const { t } = useTranslation();
   return (
     <>
-      <h1 data-playwright-test-label='main-head'>{t('donate.thank-you')}</h1>
-      {(askForDonation || thankContributon) && (
+      <h1 data-playwright-test-label='main-head'>
+        {t('donate.thank-you-continued')}
+      </h1>
+      {(askForDonation || thankContribution) && (
         <>
-          <Spacer size='medium' />
+          <Spacer size='m' />
           <p>{t('donate.crucial-contribution')}</p>
         </>
       )}
@@ -62,37 +64,40 @@ export const ThankYouMessage = ({
 const OtherWaysToSupport = (): JSX.Element => {
   const { t } = useTranslation();
   return (
-    <>
-      <p>
-        <Trans i18nKey='donate.if-support-further'>
-          <a href={t('links:donate.one-time-external-url')}>placeholder</a>
-          <a href={t('links:donate.mail-check-url')}>placeholder</a>
-          <a href={t('links:donate.other-ways-url')}>placeholder</a>
-        </Trans>
-      </p>
-    </>
+    <p>
+      <Trans i18nKey='donate.if-support-further'>
+        <a href={t('links:donate.one-time-external-url')}>placeholder</a>
+        <a href={t('links:donate.mail-check-url')}>placeholder</a>
+        <a href={t('links:donate.other-ways-url')}>placeholder</a>
+      </Trans>
+    </p>
   );
 };
 
-const FaqItem = (
-  title: string,
-  text: JSX.Element,
-  key: number
-): JSX.Element => {
+type FaqItemProps = {
+  title: string;
+  text: JSX.Element;
+  index: number;
+};
+
+const FaqItem = ({ title, text, index }: FaqItemProps): JSX.Element => {
   const [isExpanded, setExpanded] = useState(false);
+  const contentId = `donate-faq-content-${index}`;
   return (
-    <div className={`faq-item ${isExpanded ? 'open' : ''}`} key={key}>
-      <button
-        className='map-title'
-        onClick={() => setExpanded(!isExpanded)}
-        aria-expanded={isExpanded}
-        aria-controls={`donate-faq-content-${key}`}
-      >
-        <Caret />
-        <h3>{title}</h3>
-      </button>
+    <div className={`faq-item ${isExpanded ? 'open' : ''}`}>
+      <h3 className='faq-question-heading'>
+        <button
+          className='map-title'
+          onClick={() => setExpanded(!isExpanded)}
+          aria-expanded={isExpanded}
+          aria-controls={contentId}
+        >
+          <Caret />
+          <span className='faq-question-title'>{title}</span>
+        </button>
+      </h3>
       {isExpanded && (
-        <div className='map-challenges-ul' id={`donate-faq-content-${key}`}>
+        <div className='map-challenges-ul' id={contentId}>
           {text}
         </div>
       )}
@@ -104,6 +109,53 @@ export const DonationFaqText = (): JSX.Element => {
   const { t } = useTranslation();
   const faqItems = [
     { Q: t('donate.get-help'), A: <p>{t('donate.forward-receipt')}</p> },
+    {
+      Q: t('donate.offer-refunds'),
+      A: (
+        <>
+          <p>{t('donate.donations-are-voluntary')}</p>
+          <p>{t('donate.cancel-future-donations')}</p>
+          <p>{t('donate.without-your-authorization')}</p>
+        </>
+      )
+    },
+    {
+      Q: t('donate.how-update'),
+      A: (
+        <>
+          <p>{t('donate.take-care-of-this')}</p>
+          <p>{t('donate.help-update-change-cancel')}</p>
+        </>
+      )
+    },
+    {
+      Q: t('donate.how-will-donation-appear'),
+      A: (
+        <>
+          <p>{t('donate.as-freecodecamp-inc')}</p>
+          <p>{t('donate.do-not-recognize')}</p>
+        </>
+      )
+    },
+    {
+      Q: t('donate.are-benefits-a-product'),
+      A: (
+        <>
+          <p>{t('donate.benefits-are-thanks')}</p>
+          <p>{t('donate.benefits-not-sold-separately')}</p>
+        </>
+      )
+    },
+    {
+      Q: t('donate.is-donation-tax-deductible'),
+      A: (
+        <>
+          <p>{t('donate.freecodecamp-is-a-charitable-organization')}</p>
+          <p>{t('donate.donations-may-be-deductible')}</p>
+          <p>{t('donate.annual-donation-receipt')}</p>
+        </>
+      )
+    },
     {
       Q: t('donate.how-transparent'),
       A: (
@@ -146,11 +198,7 @@ export const DonationFaqText = (): JSX.Element => {
     },
     {
       Q: t('donate.does-crypto'),
-      A: (
-        <>
-          <p>{t('donate.yes-cryptocurrency')}</p>
-        </>
-      )
+      A: <p>{t('donate.yes-cryptocurrency')}</p>
     },
 
     {
@@ -187,22 +235,19 @@ export const DonationFaqText = (): JSX.Element => {
       )
     },
     { Q: t('donate.how-stock'), A: <p>{t('donate.welcome-stock')}</p> },
-    { Q: t('donate.how-update'), A: <p>{t('donate.forward-receipt')}</p> },
     {
       Q: t('donate.anything-else'),
-      A: (
-        <>
-          <p>{t('donate.other-support')}</p>
-        </>
-      )
+      A: <p>{t('donate.other-support')}</p>
     }
   ];
 
   return (
     <>
       <h2 data-playwright-test-label='faq-head'>{t('donate.faq')}</h2>
-      <Spacer size='small' />
-      {faqItems.map((item, iterator) => FaqItem(item.Q, item.A, iterator))}
+      <Spacer size='xs' />
+      {faqItems.map((item, iterator) => (
+        <FaqItem key={iterator} title={item.Q} text={item.A} index={iterator} />
+      ))}
     </>
   );
 };
@@ -221,6 +266,9 @@ export const SupportBenefitsText = ({
           : t('donate.support-benefits-title')}
       </h2>
       <BenefitsList />
+      <p className='support-benefits-disclaimer'>
+        {t('donate.support-benefits-disclaimer')}
+      </p>
     </>
   );
 };
@@ -244,7 +292,7 @@ const BenefitsList = (): JSX.Element => {
           <code>placeholder</code>
         </Trans>
       </li>
-      <li>{t('donate.support-benefits-5')}</li>
+      <li>{t('donate.support-benefits-6')}</li>
     </ul>
   );
 };
@@ -276,25 +324,25 @@ export const CommunityAchievementsText = (): JSX.Element => {
   const { t } = useTranslation();
   return (
     <>
-      <h2>{t('donate.community-achivements-title')}</h2>
+      <h2>{t('donate.community-achievements-title')}</h2>
       <ul>
         <li>
-          <Trans i18nKey='donate.community-achivements-1'>
+          <Trans i18nKey='donate.community-achievements-1'>
             <b>placeholder</b>
           </Trans>
         </li>
         <li>
-          <Trans i18nKey='donate.community-achivements-2'>
+          <Trans i18nKey='donate.community-achievements-2'>
             <b>placeholder</b>
           </Trans>
         </li>
         <li>
-          <Trans i18nKey='donate.community-achivements-3'>
+          <Trans i18nKey='donate.community-achievements-3'>
             <b>placeholder</b>
           </Trans>
         </li>
         <li>
-          <Trans i18nKey='donate.community-achivements-4'>
+          <Trans i18nKey='donate.community-achievements-4'>
             <b>placeholder</b>
           </Trans>
         </li>
@@ -311,8 +359,8 @@ export const GetSupporterBenefitsText = ({
   const { t } = useTranslation();
   return (
     <>
-      <Spacer size='large' />
-      <p>{t('donate.as-you-see')}</p>
+      <Spacer size='l' />
+      <p>{t('donate.careful-with-every-donation')}</p>
       {!isDonating ? <p>{t('donate.get-benefits')}</p> : null}
     </>
   );

@@ -1,15 +1,21 @@
+import { SuperBlocks } from '@freecodecamp/shared/config/curriculum';
 import { scriptLoader } from './script-loaders';
 
 export const mathJaxSrc =
   'https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.4/MathJax.js?config=TeX-AMS_HTML';
 
 export const isMathJaxAllowed = (pathname: string) =>
-  [
-    '/learn/javascript-algorithms-and-data-structures-v8',
-    '/learn/project-euler/',
-    '/learn/rosetta-code',
-    '/learn/scientific-computing-with-python'
-  ].some(allowedPath => pathname.includes(allowedPath));
+  superBlocksWithMathJax.some(superBlock => pathname.includes(superBlock));
+
+const superBlocksWithMathJax = [
+  SuperBlocks.JsAlgoDataStructNew,
+  SuperBlocks.JsAlgoDataStruct,
+  SuperBlocks.ProjectEuler,
+  SuperBlocks.RosettaCode,
+  SuperBlocks.SciCompPy,
+  SuperBlocks.PythonV9,
+  SuperBlocks.IntroductionToPrecalculus
+];
 
 const configure = () => {
   if (!global.MathJax) return;
@@ -21,18 +27,12 @@ const configure = () => {
         ['\\(', '\\)']
       ],
       processEscapes: true,
-      processClass:
-        'rosetta-code|project-euler|intermediate-algorithm-scripting|description-container'
+      processClass: 'mathjax-support'
     }
   });
-  MathJax.Hub.Queue([
-    'Typeset',
-    MathJax.Hub,
-    document.querySelector('.intermediate-algorithm-scripting'),
-    document.querySelector('.rosetta-code'),
-    document.querySelector('.project-euler'),
-    document.querySelector('.description-container')
-  ]);
+  document.querySelectorAll('.mathjax-support').forEach(el => {
+    MathJax.Hub.Queue(['Typeset', MathJax.Hub, el]);
+  });
 };
 
 export const initializeMathJax = (mathJaxChallenge = true) => {

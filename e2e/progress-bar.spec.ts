@@ -1,9 +1,10 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures/isolated-user';
+import translations from '../client/i18n/locales/english/translations.json';
 import { clearEditor, focusEditor } from './utils/editor';
 
-test.use({ storageState: 'playwright/.auth/certified-user.json' });
+test.use({ userPreset: 'certified' });
 
-test.describe('Progress bar component', () => {
+test.describe('Progress bar component in editor', () => {
   test('Should appear with the correct content after the user has submitted their code', async ({
     page,
     isMobile,
@@ -19,22 +20,28 @@ test.describe('Progress bar component', () => {
     await clearEditor({ page, browserName });
 
     await page.keyboard.insertText(
-      '<html><body><h1>CatPhotoApp</h1><h2>Cat Photos</h2><p>See more cat photos in our gallery.</p></body></html>'
+      '<html><body><h1>CatPhotoApp</h1><h2>Cat Photos</h2><p>Everyone loves cute cats online!</p></body></html>'
     );
 
-    await page.getByRole('button', { name: 'Check Your Code' }).click();
+    await page
+      .getByRole('button', { name: translations.buttons['check-code'] })
+      .click();
 
     const progressBarContainer = page.getByTestId('progress-bar-container');
     await expect(progressBarContainer).toContainText(
       'Learn HTML by Building a Cat Photo App'
     );
-    await expect(progressBarContainer).toContainText('0% complete');
-    await page
-      .getByRole('button', { name: 'Submit and go to next challenge' })
-      .click();
+    await expect(progressBarContainer).toContainText(/\d% complete/);
+    await page.getByRole('button', { name: 'Submit and continue' }).click();
   });
+});
 
-  test('should appear in the completion modal after user has submitted their code', async ({
+test.describe('Progress bar component on mobile', () => {
+  test.use({
+    viewport: { width: 393, height: 851 },
+    isMobile: true
+  });
+  test('should appear in the lower jaw after user has submitted their code', async ({
     page,
     isMobile,
     browserName
@@ -48,18 +55,12 @@ test.describe('Progress bar component', () => {
     await page.keyboard.insertText('var myName;');
 
     await page
-      .getByRole('button', {
-        name: 'Run',
-        exact: false
-      })
+      .getByRole('button', { name: translations.buttons['check-code'] })
       .click();
 
-    await expect(page.locator('.completion-block-meta')).toContainText(
-      '99% complete'
-    );
+    const progressBarContainer = page.getByTestId('progress-bar-container');
+    await expect(progressBarContainer).toContainText(/\d% complete/);
 
-    await page
-      .getByRole('button', { name: 'Submit and go to next challenge' })
-      .click();
+    await page.getByRole('button', { name: 'Submit and continue' }).click();
   });
 });

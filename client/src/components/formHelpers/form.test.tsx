@@ -1,3 +1,4 @@
+import { describe, test, expect, vi } from 'vitest';
 import { render, fireEvent, screen } from '@testing-library/react';
 import React from 'react';
 
@@ -20,69 +21,155 @@ const defaultTestProps: StrictSolutionFormProps = {
   submit: () => undefined
 };
 
-test('should render', () => {
-  render(<StrictSolutionForm {...defaultTestProps} />);
+const solutionLinkField = {
+  name: 'solution',
+  label: 'learn.solution-link'
+};
 
-  const websiteInput = screen.getByLabelText(/WebSite label/);
-  expect(websiteInput).toBeRequired();
-  expect(websiteInput).toHaveAttribute('type', 'url');
+const githubLinkField = {
+  name: 'githubLink',
+  label: 'learn.source-code-link'
+};
 
-  const button = screen.getByText(/submit/i);
-  expect(button).toHaveAttribute('type', 'submit');
-  expect(button).toHaveAttribute('aria-disabled', 'true');
-});
+describe('<StrictSolutionForm />', () => {
+  test('should render', () => {
+    render(<StrictSolutionForm {...defaultTestProps} />);
 
-test('should render with default values', () => {
-  const websiteValue = 'http://mysite.com';
-  const nameValue = 'John';
+    const websiteInput = screen.getByLabelText(/WebSite label/);
+    expect(websiteInput).toBeRequired();
+    expect(websiteInput).toHaveAttribute('type', 'url');
 
-  render(
-    <StrictSolutionForm
-      {...defaultTestProps}
-      enableSubmit={true}
-      initialValues={{ name: nameValue, website: websiteValue }}
-    />
-  );
+    const button = screen.getByText(/submit/i);
+    expect(button).toHaveAttribute('type', 'submit');
+    expect(button).toHaveAttribute('aria-disabled', 'true');
+  });
 
-  const nameInput = screen.getByLabelText(/name Label/);
-  expect(nameInput).toHaveValue(nameValue);
+  test('should render with default values', () => {
+    const websiteValue = 'http://mysite.com';
+    const nameValue = 'John';
 
-  const websiteInput = screen.getByLabelText(/WebSite label/);
-  expect(websiteInput).toHaveValue(websiteValue);
+    render(
+      <StrictSolutionForm
+        {...defaultTestProps}
+        enableSubmit={true}
+        initialValues={{ name: nameValue, website: websiteValue }}
+      />
+    );
 
-  const button = screen.getByText(/submit/i);
-  expect(button).toBeEnabled();
-});
+    const nameInput = screen.getByLabelText(/name Label/);
+    expect(nameInput).toHaveValue(nameValue);
 
-test('should submit', () => {
-  const submit = jest.fn();
-  const props = {
-    ...defaultTestProps,
-    submit
-  };
-  const websiteValue = 'http://mysite.com';
+    const websiteInput = screen.getByLabelText(/WebSite label/);
+    expect(websiteInput).toHaveValue(websiteValue);
 
-  render(<StrictSolutionForm {...props} />);
+    const button = screen.getByText(/submit/i);
+    expect(button).toBeEnabled();
+  });
 
-  const websiteInput = screen.getByLabelText(/WebSite label/);
-  fireEvent.change(websiteInput, { target: { value: websiteValue } });
-  expect(websiteInput).toHaveValue(websiteValue);
+  test('should submit', () => {
+    const submit = vi.fn();
+    const props = {
+      ...defaultTestProps,
+      submit
+    };
+    const websiteValue = 'http://mysite.com';
 
-  const button = screen.getByText(/submit/i);
-  expect(button).toBeEnabled();
+    render(<StrictSolutionForm {...props} />);
 
-  fireEvent.click(button);
-  expect(submit).toHaveBeenCalledTimes(1);
-  expect((submit.mock.calls[0] as unknown[])[0]).toEqual(
-    expect.objectContaining({ values: { website: websiteValue } })
-  );
+    const websiteInput = screen.getByLabelText(/WebSite label/);
+    fireEvent.change(websiteInput, { target: { value: websiteValue } });
+    expect(websiteInput).toHaveValue(websiteValue);
 
-  fireEvent.change(websiteInput, { target: { value: `${websiteValue}///` } });
-  expect(websiteInput).toHaveValue(`${websiteValue}///`);
+    const button = screen.getByText(/submit/i);
+    expect(button).toBeEnabled();
 
-  fireEvent.click(button);
-  expect(submit).toHaveBeenCalledTimes(2);
-  expect((submit.mock.calls[1] as unknown[])[0]).toEqual(
-    expect.objectContaining({ values: { website: websiteValue } })
-  );
+    fireEvent.click(button);
+    expect(submit).toHaveBeenCalledTimes(1);
+    expect((submit.mock.calls[0] as unknown[])[0]).toEqual(
+      expect.objectContaining({ values: { website: websiteValue } })
+    );
+
+    fireEvent.change(websiteInput, { target: { value: `${websiteValue}///` } });
+    expect(websiteInput).toHaveValue(`${websiteValue}///`);
+
+    fireEvent.click(button);
+    expect(submit).toHaveBeenCalledTimes(2);
+    expect((submit.mock.calls[1] as unknown[])[0]).toEqual(
+      expect.objectContaining({ values: { website: websiteValue } })
+    );
+  });
+
+  test('renders only the solution link when the source code link is ignored', () => {
+    render(
+      <StrictSolutionForm
+        buttonText='learn.i-completed'
+        formFields={[solutionLinkField, githubLinkField]}
+        id='solution-link-only'
+        options={{
+          ignored: ['githubLink'],
+          types: {
+            solution: 'url',
+            githubLink: 'url'
+          }
+        }}
+        submit={() => undefined}
+      />
+    );
+
+    expect(
+      screen.getByRole('button', { name: 'learn.i-completed' })
+    ).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getByLabelText('learn.solution-link')).toBeInTheDocument();
+    expect(
+      screen.queryByLabelText('learn.source-code-link')
+    ).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('learn.solution-link'), {
+      target: { value: 'https://example.com/solution' }
+    });
+
+    expect(
+      screen.getByRole('button', { name: 'learn.i-completed' })
+    ).toBeEnabled();
+  });
+
+  test('renders solution and source code link fields', () => {
+    render(
+      <StrictSolutionForm
+        buttonText='learn.i-completed'
+        formFields={[solutionLinkField, githubLinkField]}
+        id='solution-and-source-code-links'
+        options={{
+          types: {
+            solution: 'url',
+            githubLink: 'url'
+          }
+        }}
+        submit={() => undefined}
+      />
+    );
+
+    const submitButton = screen.getByRole('button', {
+      name: 'learn.i-completed'
+    });
+    const solutionLink = screen.getByLabelText('learn.solution-link');
+    const githubLink = screen.getByLabelText('learn.source-code-link');
+
+    expect(submitButton).toHaveAttribute('aria-disabled', 'true');
+    expect(solutionLink).toBeInTheDocument();
+    expect(githubLink).toBeInTheDocument();
+
+    fireEvent.change(solutionLink, {
+      target: { value: 'https://example.com/solution' }
+    });
+    expect(submitButton).toBeEnabled();
+
+    fireEvent.change(solutionLink, { target: { value: '' } });
+    expect(submitButton).toHaveAttribute('aria-disabled', 'true');
+
+    fireEvent.change(githubLink, {
+      target: { value: 'https://github.com/freeCodeCamp/freeCodeCamp' }
+    });
+    expect(submitButton).toBeEnabled();
+  });
 });

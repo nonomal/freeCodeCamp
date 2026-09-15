@@ -8,6 +8,7 @@ export const actionTypes = createTypes(
   [
     'createFiles',
     'createQuestion',
+    'initHooks',
     'initTests',
     'initConsole',
     'initLogs',
@@ -22,7 +23,6 @@ export const actionTypes = createTypes(
     'cancelTests',
     'logsToConsole',
     'disableBuildOnError',
-    'storedCodeFound',
     'noStoredCodeFound',
     'saveEditorContent',
     'setShowPreviewPane',
@@ -34,10 +34,10 @@ export const actionTypes = createTypes(
     'setUserCompletedExam',
     'previewMounted',
     'projectPreviewMounted',
+    'setProjectPreviewLoading',
     'storePortalWindow',
     'removePortalWindow',
     'challengeMounted',
-    'sendRenderTime',
     'checkChallenge',
     'resetChallenge',
     'stopResetting',
@@ -45,7 +45,8 @@ export const actionTypes = createTypes(
     'setEditorFocusability',
     'toggleVisibleEditor',
     ...createAsyncTypes('submitChallenge'),
-    ...createAsyncTypes('executeChallenge')
+    ...createAsyncTypes('executeChallenge'),
+    ...createAsyncTypes('askSocrates')
   ],
   ns
 );

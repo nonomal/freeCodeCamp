@@ -1,7 +1,7 @@
 import React, { ChangeEvent, useState, useRef } from 'react';
 import store from 'store';
 import { useTranslation } from 'react-i18next';
-import { Spacer } from '../helpers';
+import { Spacer } from '@freecodecamp/ui';
 import { getScrollbarWidth } from '../../utils/scrollbar-width';
 import './scrollbar-width.css';
 
@@ -39,7 +39,7 @@ export default function ScrollbarWidthSettings(): JSX.Element {
         {t('settings.scrollbar-width')}:
         <span
           className='scrollbar-width-preview'
-          style={{ width: `${scrollbarWidth}px` } as React.CSSProperties}
+          style={{ width: `${scrollbarWidth}px` }}
         />
       </label>
       <div className='scrollbar-width-container'>
@@ -78,7 +78,7 @@ export default function ScrollbarWidthSettings(): JSX.Element {
           ))}
         </div>
       </div>
-      <Spacer size='medium'></Spacer>
+      <Spacer size='m' />
     </>
   );
 }

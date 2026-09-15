@@ -21,21 +21,21 @@
   z-index: 11;
 }
 
-/* NVDA skips the textarea in browse mode if there is no size */
-textarea.inputarea {
-  width: 1px !important;
-  height: 1px !important;
-}
-
 .editor-container {
   background: var(--editor-background);
 }
 
 .breadcrumbs-demo {
+  position: fixed;
+  top: var(--header-height);
+  left: 0;
+  right: 0;
+  z-index: var(--z-index-breadcrumbs);
   font-size: 16px;
   margin: 0;
   padding: 10px;
   height: var(--breadcrumbs-height);
+  background: var(--secondary-background);
 }
 
 @media screen and (max-height: 300px) {
@@ -45,21 +45,31 @@ textarea.inputarea {
   }
 }
 
-.editor-upper-jaw,
-.editor-lower-jaw {
+.editor-upper-jaw {
   padding-inline: 0 15px;
   padding-block: 15px;
-}
-
-.editor-upper-jaw {
   max-width: unset !important;
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 .editor-upper-jaw code {
   white-space: pre-wrap;
 }
 
-.action-row-container,
+.editor-upper-jaw pre {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.editor-file-name {
+  font-size: 18px;
+  font-weight: bold;
+  border-bottom: 1px solid var(--quaternary-background);
+  padding-left: 11px;
+  overflow: hidden;
+}
+
 .description-container {
   background-color: var(--secondary-background);
   padding: 1rem;
@@ -137,10 +147,6 @@ textarea.inputarea {
   animation-delay: 0.5s;
 }
 
-.action-row-container button[aria-hidden='true'] {
-  display: none;
-}
-
 @keyframes example {
   from {
     background-color: var(--highlight-background);
@@ -175,37 +181,6 @@ textarea.inputarea {
   z-index: 1;
 }
 
-.test-feedback {
-  display: flex;
-  padding: 0;
-  flex-direction: column;
-}
-
-.test-feedback p {
-  margin: 0.45rem 0 0;
-}
-
-.test-feedback svg {
-  height: 1.5rem;
-  width: auto;
-  margin-top: 0.5rem;
-}
-
-.test-feedback .test-status,
-.test-feedback .hint-status {
-  display: flex;
-  gap: 0.5rem;
-  flex-direction: row;
-  margin-top: 1rem;
-}
-
-.test-status-description,
-.hint-description {
-  display: flex;
-  gap: 0.5rem;
-  width: 100%;
-}
-
 .fade-in {
   animation-name: FadeIn;
   animation-duration: 0.5s;
@@ -227,36 +202,8 @@ textarea.inputarea {
   }
 }
 
-.utility-bar {
-  display: grid;
-  /* 8rem is a safe default for all currently supported languages. Will need to be increased if a new language has longer words for Reset/Help. */
-  grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
-  gap: 0.75rem;
-}
-
-.utility-bar > * {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.3rem;
-  padding: 6px 0;
-}
-
 .progress-bar-container {
   text-align: center;
-}
-
-.editor-lower-jaw .progress-bar-wrap-container {
-  width: 100% !important;
-  margin: 32px 0px;
-}
-
-.editor-lower-jaw .progress-bar-background-container {
-  width: 100% !important;
-}
-
-.hint-status {
-  margin-bottom: 18px;
 }
 
 .code-details {
@@ -310,7 +257,7 @@ textarea.inputarea {
   bottom: var(--monaco-scrollbar-arrow-icon-top-bottom) !important;
 }
 
-/* we can live with with no color change for hover state if browser doesn't
+/* we can live with no color change for hover state if browser doesn't
    support :has (the mouse cursor will still change to pointer) */
 @supports (selector(html:has(body))) {
   .vs .monaco-scrollable-element .scrollbar .arrow-background:hover,

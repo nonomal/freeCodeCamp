@@ -1,35 +1,75 @@
-// We need to use the triple-slash directive to ensure that ts-node uses the
-// reset.d.ts file. It's not possible to import the file directly because it
-// is not included in the build (it's a dev dependency).
-// eslint-disable-next-line @typescript-eslint/triple-slash-reference
-/// <reference path="./reset.d.ts" />
-import { build } from './app';
-import { FREECODECAMP_NODE_ENV, HOST, PORT } from './utils/env';
+import './instrument.js';
 
-const envToLogger = {
-  development: {
-    transport: {
-      target: 'pino-pretty',
-      options: {
-        translateTime: 'HH:MM:ss Z',
-        ignore: 'pid,hostname'
-      }
-    },
-    level: 'debug'
-  },
-  // TODO: is this the right level for production or should we use 'error'?
-  production: { level: 'fatal' },
-  test: undefined
-};
+import os from 'node:os';
+
+import * as Sentry from '@sentry/node';
+import { build, buildOptions } from './app.js';
+import {
+  DEPLOYMENT_VERSION,
+  HOST,
+  PORT,
+  SENTRY_SERVER_NAME,
+  FCC_DRAIN_TIMEOUT_MS
+} from './utils/env.js';
 
 const start = async () => {
-  const fastify = await build({ logger: envToLogger[FREECODECAMP_NODE_ENV] });
+  let fastify: Awaited<ReturnType<typeof build>> | undefined;
+
   try {
-    const port = Number(PORT);
-    fastify.log.info(`Starting server on port ${port}`);
-    await fastify.listen({ port, host: HOST });
+    fastify = await build(buildOptions);
+
+    const stop = async (signal: NodeJS.Signals) => {
+      fastify!.log.info({ signal }, 'Received signal, shutting down');
+
+      // Safety net: if in-flight requests do not finish in time, hard-close
+      // whatever is left so Swarm's SIGKILL never fires mid-write.
+      const forceClose = setTimeout(() => {
+        fastify!.log.warn(
+          { signal, timeoutMs: FCC_DRAIN_TIMEOUT_MS },
+          'Drain timeout exceeded, force-closing connections'
+        );
+        fastify!.server.closeAllConnections();
+      }, FCC_DRAIN_TIMEOUT_MS);
+      forceClose.unref();
+
+      await fastify!.close();
+      clearTimeout(forceClose);
+      Sentry.metrics.count('server.shutdown_completed', 1, {
+        attributes: { signal }
+      });
+      await fastify!.Sentry.close(2000);
+      // No process.exit(): once close() resolves, the loop drains and the
+      // process exits 0 on its own. Hard-exiting here is what used to race
+      // pino's exit-time flush (see #66135).
+    };
+
+    process.on('SIGINT', signal => void stop(signal));
+    process.on('SIGTERM', signal => void stop(signal));
+
+    const address = await fastify.listen({ port: Number(PORT), host: HOST });
+    fastify.log.info(
+      {
+        audit: true,
+        version: DEPLOYMENT_VERSION,
+        instanceId: SENTRY_SERVER_NAME ?? os.hostname(),
+        address
+      },
+      'API server started'
+    );
+    Sentry.metrics.count('server.boot', 1, {
+      attributes: { result: 'success' }
+    });
   } catch (err) {
-    fastify.log.error(err);
+    if (fastify) {
+      fastify.log.error(err, 'Failed to start server');
+    } else {
+      console.error('Failed to start server', err);
+    }
+    Sentry.metrics.count('server.boot', 1, {
+      attributes: { result: 'failure' }
+    });
+    Sentry.captureException(err);
+    await (fastify?.Sentry ?? Sentry).close(2000);
     process.exit(1);
   }
 };

@@ -1,25 +1,28 @@
 import { navigate } from 'gatsby';
-import { call, put, take, takeEvery } from 'redux-saga/effects';
+import { call, put, select, take, takeEvery } from 'redux-saga/effects';
 
 import { createFlashMessage } from '../../components/Flash/redux';
 import { FlashMessages } from '../../components/Flash/redux/flash-messages';
 import { postDeleteAccount, postResetProgress } from '../../utils/ajax';
 import { actionTypes as appTypes } from '../action-types';
-import { fetchUser, resetUserData } from '../actions';
+import { fetchUser, hardGoTo } from '../actions';
+import { userIdSelector } from '../selectors';
 import { deleteAccountError, resetProgressError } from './actions';
 
-function* deleteAccountSaga() {
+export function* deleteAccountSaga() {
   try {
-    yield call(postDeleteAccount);
+    const userId = yield select(userIdSelector);
+    if (!userId) {
+      throw new Error('Unable to delete account: no user id found');
+    }
+    yield call(postDeleteAccount, userId);
     yield put(
       createFlashMessage({
         type: 'info',
         message: FlashMessages.AccountDeleted
       })
     );
-    // remove current user information from application state
-    yield put(resetUserData());
-    yield call(navigate, '/learn');
+    yield put(hardGoTo('/learn'));
   } catch (e) {
     yield put(deleteAccountError(e));
   }

@@ -1,6 +1,7 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures/isolated-user';
 import translations from '../client/i18n/locales/english/translations.json';
-test.use({ storageState: 'playwright/.auth/certified-user.json' });
+
+test.use({ userPreset: 'certified' });
 
 const settingsObject = {
   usernamePlaceholder: '{{username}}',
@@ -11,14 +12,15 @@ const settingsObject = {
   usernameNotAvailable: 'Twaha',
   usernameInvalid: 'user!',
   usernameTooShort: 'us',
-  certifiedUsername: 'certifieduser',
   testUser: 'testuser',
   errorCode: '404'
 };
 
 test.describe('Username Settings Validation', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto('/settings');
+  test.beforeEach(async ({ page, isolatedUser }) => {
+    await page.goto(`/${isolatedUser.username}`);
+
+    await page.getByRole('button', { name: 'Edit my profile' }).click();
   });
 
   test('Should display Username Input and Save Button', async ({ page }) => {
@@ -82,67 +84,82 @@ test.describe('Username Settings Validation', () => {
     ).toBeVisible();
   });
 
-  test('Should save valid Username', async ({ page }) => {
+  test('Should save valid Username', async ({ page, isolatedUser }) => {
+    const newUsername = `${settingsObject.usernameAvailable}-${isolatedUser.email.split('@')[0]}`;
     const inputLabel = page.getByLabel(translations.settings.labels.username);
     const saveButton = page.getByRole('button', {
       name: translations.settings.labels.username
     });
-    await inputLabel.fill(settingsObject.usernameAvailable);
+    const flashText = translations.flash['username-updated'].replace(
+      settingsObject.usernamePlaceholder,
+      newUsername
+    );
+
+    await inputLabel.fill(newUsername);
     await expect(saveButton).not.toBeDisabled();
     await saveButton.click();
     await expect(
-      page.getByText(
-        translations.flash['username-updated'].replace(
-          settingsObject.usernamePlaceholder,
-          settingsObject.usernameAvailable
-        )
-      )
+      page.getByRole('alert').filter({ hasText: flashText }).first()
     ).toBeVisible();
+    await expect(page).toHaveURL(`/${newUsername}`);
   });
 
   test('should update username in lowercase and reflect in the UI', async ({
-    page
+    page,
+    isolatedUser
   }) => {
+    const newUsername = `${settingsObject.usernameUpdateToLowerCase}-${isolatedUser.email.split('@')[0]}`;
     const inputLabel = page.getByLabel(translations.settings.labels.username);
     const saveButton = page.getByRole('button', {
       name: translations.settings.labels.username
     });
-    await inputLabel.fill(settingsObject.usernameUpdateToLowerCase);
+    const flashText = translations.flash['username-updated'].replace(
+      settingsObject.usernamePlaceholder,
+      newUsername
+    );
+
+    await inputLabel.fill(newUsername);
     await expect(saveButton).not.toBeDisabled();
     await saveButton.click();
     await expect(
-      page.getByText(
-        translations.flash['username-updated'].replace(
-          settingsObject.usernamePlaceholder,
-          settingsObject.usernameUpdateToLowerCase
-        )
-      )
+      page.getByRole('alert').filter({ hasText: flashText }).first()
     ).toBeVisible();
   });
 
   test('should update username in uppercase and reflect in the UI', async ({
-    page
+    page,
+    isolatedUser
   }) => {
+    const newUsername = `${settingsObject.usernameUpdateToUpperCase}-${isolatedUser.email.split('@')[0]}`;
     const inputLabel = page.getByLabel(translations.settings.labels.username);
     const saveButton = page.getByRole('button', {
       name: translations.settings.labels.username
     });
-    await inputLabel.fill(settingsObject.usernameUpdateToUpperCase);
+    const flashText = translations.flash['username-updated'].replace(
+      settingsObject.usernamePlaceholder,
+      newUsername
+    );
+
+    await inputLabel.fill(newUsername);
     await expect(saveButton).not.toBeDisabled();
     await saveButton.click();
     await expect(
-      page.getByText(
-        translations.flash['username-updated'].replace(
-          settingsObject.usernamePlaceholder,
-          settingsObject.usernameUpdateToUpperCase
-        )
-      )
+      page.getByRole('alert').filter({ hasText: flashText }).first()
     ).toBeVisible();
   });
 
-  test('should update username by pressing enter', async ({ page }) => {
+  test('should update username by pressing enter', async ({
+    page,
+    isolatedUser
+  }) => {
+    const newUsername = `${settingsObject.testUser}-${isolatedUser.email.split('@')[0]}`;
     const inputLabel = page.getByLabel(translations.settings.labels.username);
-    await inputLabel.fill(settingsObject.testUser);
+    await inputLabel.fill(newUsername);
+
+    const flashText = translations.flash['username-updated'].replace(
+      settingsObject.usernamePlaceholder,
+      newUsername
+    );
 
     await expect(
       page.getByText(translations.settings.username.available)
@@ -151,23 +168,19 @@ test.describe('Username Settings Validation', () => {
     await inputLabel.press('Enter');
 
     await expect(
-      page.getByText(
-        translations.flash['username-updated'].replace(
-          settingsObject.usernamePlaceholder,
-          settingsObject.testUser
-        )
-      )
+      page.getByRole('alert').filter({ hasText: flashText }).first()
     ).toBeVisible();
   });
 
   test('should not be able to update username to the same username', async ({
-    page
+    page,
+    isolatedUser
   }) => {
     const inputLabel = page.getByLabel(translations.settings.labels.username);
     const saveButton = page.getByRole('button', {
       name: translations.settings.labels.username
     });
-    await inputLabel.fill(settingsObject.testUser);
+    await inputLabel.fill(isolatedUser.username);
     await expect(saveButton).toBeDisabled();
   });
 });

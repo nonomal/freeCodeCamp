@@ -1,140 +1,108 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import {
+  startOfDay,
+  addDays,
+  isEqual,
+  differenceInCalendarDays
+} from 'date-fns';
 import { useTranslation } from 'react-i18next';
-import addDays from 'date-fns/addDays';
-import addMonths from 'date-fns/addMonths';
-import isEqual from 'date-fns/isEqual';
-import startOfDay from 'date-fns/startOfDay';
-import { User } from '../../../redux/prop-types';
-import { FullWidthRow, Spacer } from '../../helpers';
+import { Spacer } from '@freecodecamp/ui';
+import { last } from 'lodash-es';
+import { uniqBy } from 'lodash';
+
+import { FullWidthRow } from '../../helpers';
+
 import './stats.css';
 
 interface StatsProps {
   points: number;
-  calendar: User['calendar'];
+  calendar: Record<string, number>;
+  isPrivate?: boolean;
 }
 
-function Stats({ points, calendar }: StatsProps): JSX.Element {
-  const { t } = useTranslation();
-
-  /**
-   *  the following logic calculates streaks from the
-   *  users calendar
-   */
-
-  interface PageData {
-    startOfCalendar: Date;
-    endOfCalendar: Date;
-  }
-
-  interface CalendarData {
-    date: Date;
-    count: number;
-  }
-
-  // create array of timestamps and turn into milliseconds
+export const calculateStreaks = (calendar: Record<string, number>) => {
+  // calendar keys are timestamps in seconds and we need them in milliseconds
   const timestamps = Object.keys(calendar).map(
     stamp => Number.parseInt(stamp, 10) * 1000
   );
-  const startOfTimestamps = startOfDay(new Date(timestamps[0]));
-  let endOfCalendar = startOfDay(Date.now());
-  let startOfCalendar;
+  const days = uniqBy(
+    timestamps.map(stamp => startOfDay(stamp)),
+    day => day.getTime()
+  );
 
-  const pages: PageData[] = [];
+  const { longestStreak, currentStreak } = days.reduce(
+    (acc, day) => {
+      const isConsecutive = isEqual(addDays(acc.previousDay, 1), day);
+      const currentStreak = isConsecutive ? acc.currentStreak + 1 : 1;
+      const longestStreak = Math.max(acc.longestStreak, currentStreak);
 
-  do {
-    startOfCalendar = addDays(addMonths(endOfCalendar, -6), 1);
+      return {
+        currentStreak,
+        longestStreak,
+        previousDay: day
+      };
+    },
+    // the site didn't exist in 1970, so we can be confident no streak started
+    // then
+    { currentStreak: 0, longestStreak: 0, previousDay: new Date(0) }
+  );
 
-    const newPage = {
-      startOfCalendar: startOfCalendar,
-      endOfCalendar: endOfCalendar
-    };
+  const lastDay = last(days);
+  const today = startOfDay(Date.now());
 
-    pages.push(newPage);
+  // Grace period: streak remains active if last activity was today or yesterday
+  const streakExpired =
+    !lastDay || differenceInCalendarDays(today, lastDay) > 1;
 
-    endOfCalendar = addDays(startOfCalendar, -1);
-  } while (startOfTimestamps < startOfCalendar);
+  return { longestStreak, currentStreak: streakExpired ? 0 : currentStreak };
+};
 
-  pages.reverse();
+function Stats({ points, calendar, isPrivate }: StatsProps): JSX.Element {
+  const { t } = useTranslation();
 
-  const calendarData: CalendarData[] = [];
-  let dayCounter = pages[0].startOfCalendar;
+  const [currentStreak, setCurrentStreak] = useState(0);
+  const [longestStreak, setLongestStreak] = useState(0);
 
-  // create an object for each day of the calendar period
-  while (dayCounter <= pages[pages.length - 1].endOfCalendar) {
-    const newDay = {
-      date: startOfDay(dayCounter),
-      count: 0
-    };
+  useEffect(() => {
+    const { longestStreak, currentStreak } = calculateStreaks(calendar);
 
-    calendarData.push(newDay);
-    dayCounter = addDays(dayCounter, 1);
-  }
-
-  let longestStreak = 0;
-  let currentStreak = 0;
-  let lastIndex = -1;
-
-  // add a point to each day with a completed timestamp and calculate streaks
-  timestamps.forEach(stamp => {
-    const index = calendarData.findIndex(day =>
-      isEqual(day.date, startOfDay(stamp))
-    );
-
-    if (index >= 0) {
-      // add one point for today
-      calendarData[index].count++;
-
-      // if timestamp is on a new day, deal with streaks
-      if (index !== lastIndex) {
-        // if yesterday has points
-        if (calendarData[index - 1] && calendarData[index - 1].count > 0) {
-          currentStreak++;
-        } else {
-          currentStreak = 1;
-        }
-
-        if (currentStreak > longestStreak) {
-          longestStreak = currentStreak;
-        }
-      }
-
-      lastIndex = index;
-    }
-  });
-
-  // if today has no points
-  if (
-    calendarData[calendarData.length - 1] &&
-    calendarData[calendarData.length - 1].count === 0
-  ) {
-    currentStreak = 0;
-  }
+    setLongestStreak(longestStreak);
+    setCurrentStreak(currentStreak);
+  }, [calendar]);
 
   return (
     <FullWidthRow>
-      <h2>{t('profile.stats')}</h2>
-      <Spacer size='small' />
-      <dl className='stats'>
-        <div>
-          <dt>
-            <b data-testid='current-streak'>{t('profile.current-streak')}</b>
-          </dt>
-          <dd>{currentStreak || 0}</dd>
+      <section className='card'>
+        <div className='profile-section-heading'>
+          <h2>{t('profile.stats')}</h2>
+          {isPrivate && (
+            <span className='profile-private-badge'>
+              {t('buttons.private')}
+            </span>
+          )}
         </div>
-        <div>
-          <dt>
-            <b>{t('profile.total-points')}</b>
-          </dt>
-          <dd>{points}</dd>
-        </div>
-        <div>
-          <dt>
-            <b data-testid='longest-streak'>{t('profile.longest-streak')}</b>
-          </dt>
-          <dd>{longestStreak || 0}</dd>
-        </div>
-      </dl>
-      <hr />
+        <Spacer size='s' />
+        <dl className='stats'>
+          <div>
+            <dt>
+              <b data-testid='current-streak'>{t('profile.current-streak')}</b>
+            </dt>
+            <dd>{currentStreak || 0}</dd>
+          </div>
+          <div data-testid='total-points'>
+            <dt>
+              <b>{t('profile.total-points')}</b>
+            </dt>
+            <dd>{points}</dd>
+          </div>
+          <div>
+            <dt>
+              <b data-testid='longest-streak'>{t('profile.longest-streak')}</b>
+            </dt>
+            <dd>{longestStreak || 0}</dd>
+          </div>
+        </dl>
+      </section>
     </FullWidthRow>
   );
 }

@@ -1,7 +1,7 @@
 import {
   DonationAmount,
   DonationDuration
-} from '../../../shared/config/donation-settings';
+} from '@freecodecamp/shared/config/donation-settings';
 import { ChallengeFiles } from '../redux/prop-types';
 import TagManager from '.';
 
@@ -30,13 +30,18 @@ type DonationRelatedEventAction =
   | 'Learn Donation Alert Click'
   | 'Certification Donation Alert Click'
   | 'Modal Become Supporter Click'
+  | 'Socrates LowerJaw Become Supporter Click'
   | 'Donate Page Patreon Payment Redirection'
   | 'Modal Patreon Payment Redirection'
+  | 'Amount Confirmation Clicked'
+  | 'Select Amount Tab Clicked'
+  | 'Edit Amount Clicked'
   | 'Certificate Patreon Payment Redirection';
 
 interface DonationRelatedEvent {
   event: 'donation_related';
   action: DonationRelatedEventAction;
+  amount?: DonationAmount;
 }
 
 type DonationViewEventAction =
@@ -48,11 +53,6 @@ type DonationViewEventAction =
 interface DonationViewEvent {
   event: 'donation_view';
   action: DonationViewEventAction;
-}
-
-interface RenderTimeEvent {
-  event: 'render_time';
-  render_time_msec: number;
 }
 
 interface PageViewEvent {
@@ -83,16 +83,51 @@ interface SignIn {
   event: 'sign_in';
 }
 
+interface SignOut {
+  event: 'sign_out';
+  user_id: undefined;
+}
+
+interface ChallengeTestCodeButtonClickEvent {
+  event: 'challenge_test_code_button_click';
+}
+
+interface ChallengeSubmitButtonClickEvent {
+  event: 'challenge_submit_button_click';
+}
+
+interface CallSocratesEvent {
+  event: 'call_socrates';
+  action: 'Socrates LowerJaw Button Click';
+  is_donating: boolean;
+  attempts: number | null;
+  limit: number | null;
+  optimized_request: Record<string, unknown> | null;
+}
+
+interface SendSocratesEvent {
+  event: 'send_socrates';
+  action: 'Socrates Request Sent';
+  is_donating: boolean;
+  attempts: number | null;
+  limit: number | null;
+  optimized_request: Record<string, unknown> | null;
+}
+
 export type GAevent =
   | DonationViewEvent
   | DonationEvent
   | DonationRelatedEvent
-  | RenderTimeEvent
   | PageViewEvent
   | ExperimentViewEvent
   | ChallengeFailedEvent
   | UserData
-  | SignIn;
+  | SignOut
+  | SignIn
+  | ChallengeTestCodeButtonClickEvent
+  | ChallengeSubmitButtonClickEvent
+  | CallSocratesEvent
+  | SendSocratesEvent;
 
 export default function callGA(payload: GAevent) {
   TagManager.dataLayer({

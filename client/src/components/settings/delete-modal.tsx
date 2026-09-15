@@ -5,13 +5,12 @@ import {
   ControlLabel,
   FormControl,
   FormGroup,
-  Modal
+  Modal,
+  Spacer
 } from '@freecodecamp/ui';
 
-import { Spacer } from '../helpers';
-
 type DeleteModalProps = {
-  delete: () => void;
+  delete: (x?: never) => void;
   onHide: () => void;
   show: boolean;
 };
@@ -28,6 +27,11 @@ function DeleteModal(props: DeleteModalProps): JSX.Element {
     setVerifyText(event.target.value);
   };
 
+  const handleDeleteAccount = () => {
+    props.delete();
+    props.onHide();
+  };
+
   return (
     <Modal onClose={onHide} open={show} variant='danger' size='large'>
       <Modal.Header showCloseButton={true} closeButtonClassNames='close'>
@@ -37,9 +41,9 @@ function DeleteModal(props: DeleteModalProps): JSX.Element {
         <p>{t('settings.danger.delete-p1')}</p>
         <p>{t('settings.danger.delete-p2')}</p>
         <p>
-          <Trans i18nKey='settings.danger.delete-p3'>
+          <Trans i18nKey='settings.danger.delete-p3' values={{ email }}>
             <a href={`mailto:${email}`} title={email}>
-              {{ email }}
+              {'{{email}}'}
             </a>
           </Trans>
         </p>
@@ -54,26 +58,26 @@ function DeleteModal(props: DeleteModalProps): JSX.Element {
         >
           {t('settings.danger.nevermind')}
         </Button>
-        <Spacer size='small' />
+        <Spacer size='xs' />
         <FormGroup controlId='verify-delete'>
           <ControlLabel htmlFor='verify-delete-input'>
             {t('settings.danger.verify-text', {
               verifyText: t('settings.danger.verify-delete-text')
             })}
           </ControlLabel>
-          <Spacer size='small' />
+          <Spacer size='xs' />
           <FormControl
             onChange={handleVerifyTextChange}
             value={verifyText}
             id='verify-delete-input'
           />
         </FormGroup>
-        <Spacer size='small' />
+        <Spacer size='xs' />
         <Button
           block={true}
           size='large'
           variant='danger'
-          onClick={props.delete}
+          onClick={handleDeleteAccount}
           disabled={verifyText !== t('settings.danger.verify-delete-text')}
           type='button'
         >

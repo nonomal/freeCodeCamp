@@ -4,11 +4,14 @@ export const ns = 'app';
 
 export const actionTypes = createTypes(
   [
+    'setTheme',
+    'initializeTheme',
+    'toggleTheme',
     'appMount',
     'hardGoTo',
-    'allowBlockDonationRequests',
+    'allowSectionDonationRequests',
     'setRenderStartTime',
-    'preventBlockDonationRequests',
+    'preventSectionDonationRequests',
     'setIsRandomCompletionThreshold',
     'openDonationModal',
     'closeDonationModal',
@@ -31,19 +34,19 @@ export const actionTypes = createTypes(
     'updateComplete',
     'updateFailed',
     'updateDonationFormState',
+    'removeModuleChallenges',
     'updateUserToken',
     'postChargeProcessing',
-    'updateAllChallengesInfo',
     'updateCardRedirecting',
     ...createAsyncTypes('updateCard'),
     ...createAsyncTypes('fetchUser'),
     ...createAsyncTypes('postCharge'),
     ...createAsyncTypes('fetchProfileForUser'),
-    ...createAsyncTypes('acceptTerms'),
     ...createAsyncTypes('showCert'),
     ...createAsyncTypes('reportUser'),
     ...createAsyncTypes('deleteUserToken'),
-    ...createAsyncTypes('saveChallenge')
+    ...createAsyncTypes('saveChallenge'),
+    'fetchUserTimeout'
   ],
   ns
 );

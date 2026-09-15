@@ -1,11 +1,11 @@
 import jwt from 'jsonwebtoken';
 
-import { availableLangs } from '../../../shared/config/i18n';
-import { allowedOrigins } from './allowed-origins';
+import { availableLangs } from '@freecodecamp/shared/config/i18n';
+import { allowedOrigins } from './allowed-origins.js';
 
 // process.env.HOME_LOCATION is being used as a fallback here. If the one
 // provided by the client is invalid we default to this.
-import { HOME_LOCATION } from './env';
+import { HOME_LOCATION } from './env.js';
 
 /**
  * Get the returnTo value.
@@ -23,9 +23,7 @@ export function getReturnTo(
   let params;
   try {
     params = jwt.verify(encryptedParams, secret);
-  } catch (e) {
-    // TODO: report to Sentry? Probably not. Remove entirely?
-    console.log(e);
+  } catch {
     // something went wrong, use default params
     params = {
       returnTo: `${_homeLocation}/learn`,
@@ -105,7 +103,7 @@ function getParamsFromUrl(
   let returnUrl;
   try {
     returnUrl = new URL(url ? url : HOME_LOCATION);
-  } catch (e) {
+  } catch (_e) {
     returnUrl = new URL(HOME_LOCATION);
   }
 
@@ -113,7 +111,12 @@ function getParamsFromUrl(
   // if this is not one of the client languages, validation will convert
   // this to '' before it is used.
   const pathPrefix = returnUrl.pathname.split('/')[1] ?? '';
-  return normalize({ returnTo: returnUrl.href, origin, pathPrefix });
+  return normalize({
+    // strip off any query parameters
+    returnTo: returnUrl.origin + returnUrl.pathname,
+    origin,
+    pathPrefix
+  });
 }
 
 /**

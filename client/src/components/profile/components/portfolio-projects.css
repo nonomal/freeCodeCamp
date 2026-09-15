@@ -1,8 +1,18 @@
+.portfolio-item-wrapper {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.portfolio-item-wrapper .portfolio-card {
+  flex: 1;
+  min-width: 0;
+}
+
 /* Base styles for mobile devices */
 .portfolio-card {
   display: flex;
   flex-direction: column;
-  margin-top: 2rem;
   width: 100%;
   height: auto;
   overflow: hidden;
@@ -84,7 +94,8 @@ a.portfolio-card:focus img {
 
 .timeline-pagination_list_item > button {
   outline-color: transparent;
-  padding: 0 3px;
+  height: 44px;
+  width: 44px;
 }
 
 .timeline-row {
@@ -93,6 +104,7 @@ a.portfolio-card:focus img {
 
 .timeline-row > td {
   vertical-align: middle !important;
+  width: 100%;
 }
 
 .timeline-cert-link {
